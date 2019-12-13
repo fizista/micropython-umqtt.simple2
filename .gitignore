@@ -1,0 +1,31 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+
+# C extensions
+*.so
+
+# Distribution / packaging
+build/
+build_app/
+develop-eggs/
+dist/
+eggs/
+sdist/
+tmp/
+*.egg-info/
+.installed.cfg
+*.egg
+.eggs
+__dist/
+.idea/
+MANIFEST
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+## generic files to ignore
+*~
+*.lock
+
