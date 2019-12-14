@@ -1,14 +1,23 @@
 import usocket as socket
 import ustruct as struct
-from ubinascii import hexlify
+from utime import ticks_add, ticks_ms, ticks_diff
+
 
 class MQTTException(Exception):
     pass
 
+
+def pid_gen():
+    pid = 0
+    while True:
+        pid = pid + 1 if pid < 65535 else 1
+        yield pid
+
+
 class MQTTClient:
 
     def __init__(self, client_id, server, port=0, user=None, password=None, keepalive=0,
-                 ssl=False, ssl_params={}):
+                 ssl=False, ssl_params={}, socket_timeout=1, message_timeout=5):
         if port == 0:
             port = 8883 if ssl else 1883
         self.client_id = client_id
@@ -17,8 +26,9 @@ class MQTTClient:
         self.port = port
         self.ssl = ssl
         self.ssl_params = ssl_params
-        self.pid = 0
+        self.newpid = pid_gen()
         self.cb = None
+        self.cbstat = lambda p, s: None
         self.user = user
         self.pswd = password
         self.keepalive = keepalive
@@ -26,23 +36,66 @@ class MQTTClient:
         self.lw_msg = None
         self.lw_qos = 0
         self.lw_retain = False
+        self.rcv_pids = {}  # PUBACK and SUBACK pids awaiting ACK response
+
+        self.last_rx = ticks_ms()  # Time of last communication from broker
+        self.last_rcommand = ticks_ms()  # Time of last OK read command
+
+        self.socket_timeout = socket_timeout
+        self.message_timeout = message_timeout
+
+    def _read(self, n):
+        # in non-blocking mode, may not download enough data
+        msg = self.sock.read(n)
+        if msg == b'':  # Connection closed by host (?)
+            raise MQTTException(1)
+        if msg is not None:
+            if len(msg) != n:
+                raise MQTTException(2)
+            self.last_rx = ticks_ms()
+        return msg
+
+    def _write(self, bytes_wr, length=0):
+        # In non-blocking socket mode, the entire block of data may not be sent.
+        if length:
+            bytes_wr = bytes_wr[:length]
+        write_bytes = self.sock.write(bytes_wr)
+        if write_bytes != len(bytes_wr):
+            raise MQTTException(3)
+        return write_bytes
 
     def _send_str(self, s):
-        self.sock.write(struct.pack("!H", len(s)))
-        self.sock.write(s)
+        self._write(struct.pack("!H", len(s)))
+        self._write(s)
 
     def _recv_len(self):
         n = 0
         sh = 0
         while 1:
-            b = self.sock.read(1)[0]
+            b = self._read(1)[0]
             n |= (b & 0x7f) << sh
             if not b & 0x80:
                 return n
             sh += 7
 
     def set_callback(self, f):
+        """
+        Set callback for received subscription messages.
+        :param f: callable(topic, msg, retained)
+        """
         self.cb = f
+
+    def set_callback_status(self, f):
+        """
+        Set the callback for information about whether the sent packet (QoS=1)
+        or subscription was received or not by the server.
+        :param f: callable(pid, status)
+
+        Where:
+            status = -1 - timeout
+            status = 1 - successfully delivered
+        """
+        self.cbstat = f
 
     def set_last_will(self, topic, msg, retain=False, qos=0):
         assert 0 <= qos <= 2
@@ -83,9 +136,8 @@ class MQTTClient:
             i += 1
         premsg[i] = sz
 
-        self.sock.write(premsg, i + 2)
-        self.sock.write(msg)
-        #print(hex(len(msg)), hexlify(msg, ":"))
+        self._write(premsg, i + 2)
+        self._write(msg)
         self._send_str(self.client_id)
         if self.lw_topic:
             self._send_str(self.lw_topic)
@@ -93,112 +145,130 @@ class MQTTClient:
         if self.user is not None:
             self._send_str(self.user)
             self._send_str(self.pswd)
-        resp = self.sock.read(4)
+        resp = self._read(4)
         assert resp[0] == 0x20 and resp[1] == 0x02
         if resp[3] != 0:
-            raise MQTTException(resp[3])
+            raise MQTTException(6, resp[3])
         return resp[2] & 1
 
     def disconnect(self):
-        self.sock.write(b"\xe0\0")
+        self._write(b"\xe0\0")
         self.sock.close()
 
     def ping(self):
-        self.sock.write(b"\xc0\0")
+        self._write(b"\xc0\0")
 
-    def publish(self, topic, msg, retain=False, qos=0):
+    def publish(self, topic, msg, retain=False, qos=0, dup=0):
+        if qos == 2:
+            raise MQTTException(100)
         pkt = bytearray(b"\x30\0\0\0")
-        pkt[0] |= qos << 1 | retain
+        pkt[0] |= qos << 1 | retain | dup << 3
         sz = 2 + len(topic) + len(msg)
         if qos > 0:
             sz += 2
-        assert sz < 2097152
+        if sz >= 2097152:
+            raise MQTTException(4)
         i = 1
         while sz > 0x7f:
             pkt[i] = (sz & 0x7f) | 0x80
             sz >>= 7
             i += 1
         pkt[i] = sz
-        #print(hex(len(pkt)), hexlify(pkt, ":"))
-        self.sock.write(pkt, i + 1)
+        self._write(pkt, i + 1)
         self._send_str(topic)
         if qos > 0:
-            self.pid += 1
-            pid = self.pid
+            pid = next(self.newpid)
             struct.pack_into("!H", pkt, 0, pid)
-            self.sock.write(pkt, 2)
-        self.sock.write(msg)
-        if qos == 1:
-            while 1:
-                op = self.wait_msg()
-                if op == 0x40:
-                    sz = self.sock.read(1)
-                    assert sz == b"\x02"
-                    rcv_pid = self.sock.read(2)
-                    rcv_pid = rcv_pid[0] << 8 | rcv_pid[1]
-                    if pid == rcv_pid:
-                        return
-        elif qos == 2:
-            assert 0
+            self._write(pkt, 2)
+        self._write(msg)
+        if qos > 0:
+            self.rcv_pids[pid] = ticks_add(ticks_ms(), self.message_timeout * 1000)
+            return pid
 
     def subscribe(self, topic, qos=0):
         assert self.cb is not None, "Subscribe callback is not set"
         pkt = bytearray(b"\x82\0\0\0")
-        self.pid += 1
-        struct.pack_into("!BH", pkt, 1, 2 + 2 + len(topic) + 1, self.pid)
-        #print(hex(len(pkt)), hexlify(pkt, ":"))
-        self.sock.write(pkt)
+        pid = next(self.newpid)
+        struct.pack_into("!BH", pkt, 1, 2 + 2 + len(topic) + 1, pid)
+        self._write(pkt)
         self._send_str(topic)
-        self.sock.write(qos.to_bytes(1, "little"))
-        while 1:
-            op = self.wait_msg()
-            if op == 0x90:
-                resp = self.sock.read(4)
-                #print(resp)
-                assert resp[1] == pkt[2] and resp[2] == pkt[3]
-                if resp[3] == 0x80:
-                    raise MQTTException(resp[3])
-                return
+        self._write(qos.to_bytes(1, "little"))  # maksymalna wartość QOS jaką może nadawać serwer do klienta
+        self.rcv_pids[pid] = ticks_add(ticks_ms(), self.message_timeout * 1000)
+        return pid
 
     # Wait for a single incoming MQTT message and process it.
     # Subscribed messages are delivered to a callback previously
     # set by .set_callback() method. Other (internal) MQTT
     # messages processed internally.
-    def wait_msg(self):
-        res = self.sock.read(1)
-        self.sock.setblocking(True)
+    def wait_msg(self, _st=None):
+        res = self._read(1)  # Throws OSError on WiFi fail
+        # Real mode without blocking
+        self.sock.settimeout(_st)
         if res is None:
             return None
-        if res == b"":
-            raise OSError(-1)
         if res == b"\xd0":  # PINGRESP
-            sz = self.sock.read(1)[0]
-            assert sz == 0
-            return None
+            sz = self._read(1)[0]
+            self.last_rcommand = ticks_ms()
+            return
+
         op = res[0]
+
+        if op == 0x40:  # PUBACK
+            sz = self._read(1)
+            if sz != b"\x02":
+                raise MQTTException(-1)
+            rcv_pid = self._read(2)
+            pid = rcv_pid[0] << 8 | rcv_pid[1]
+            if pid in self.rcv_pids:
+                self.last_rcommand = ticks_ms()
+                self.rcv_pids.pop(pid)
+                self.cbstat(pid, 1)
+            else:
+                raise MQTTException(5)
+
+        if op == 0x90:  # SUBACK
+            resp = self._read(4)
+            if resp[3] == 0x80:
+                raise MQTTException(-1)
+            pid = resp[2] | (resp[1] << 8)
+            if pid in self.rcv_pids:
+                self.last_rcommand = ticks_ms()
+                self.rcv_pids.pop(pid)
+                self.cbstat(pid, 1)
+            else:
+                raise MQTTException(5)
+
+        curr_tick = ticks_ms()
+        for pid, timeout in self.rcv_pids.items():
+            if ticks_diff(timeout, curr_tick) <= 0:
+                self.rcv_pids.pop(pid)
+                self.cbstat(pid, -1)
+
         if op & 0xf0 != 0x30:
             return op
         sz = self._recv_len()
-        topic_len = self.sock.read(2)
+        topic_len = self._read(2)
         topic_len = (topic_len[0] << 8) | topic_len[1]
-        topic = self.sock.read(topic_len)
+        topic = self._read(topic_len)
         sz -= topic_len + 2
         if op & 6:
-            pid = self.sock.read(2)
+            pid = self._read(2)
             pid = pid[0] << 8 | pid[1]
             sz -= 2
-        msg = self.sock.read(sz)
-        self.cb(topic, msg)
+        msg = self._read(sz)
+        retained = op & 0x01
+        self.cb(topic, msg, bool(retained))
+        self.last_rcommand = ticks_ms()
         if op & 6 == 2:
-            pkt = bytearray(b"\x40\x02\0\0")
+            pkt = bytearray(b"\x40\x02\0\0")  # Send PUBACK
             struct.pack_into("!H", pkt, 2, pid)
-            self.sock.write(pkt)
+            self._write(pkt)
         elif op & 6 == 4:
-            assert 0
+            raise MQTTException(-1)
 
     # Checks whether a pending message from server is available.
     # If not, returns immediately with None. Otherwise, does
     # the same processing as wait_msg.
     def check_msg(self):
         self.sock.setblocking(False)
-        return self.wait_msg()
+        return self.wait_msg(_st=self.socket_timeout)
