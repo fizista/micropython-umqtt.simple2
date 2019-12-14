@@ -1,0 +1,12 @@
+Add tests
+Push package to PyPi
+Add documentation methods https://github.com/micropython/micropython-lib/pull/323/commits/8a4d351a8fafc1c0e3cf5dfabe0e37a7f0988013
+Test SSL https://github.com/micropython/micropython-lib/issues/249  https://docs.micropython.org/en/latest/library/ussl.html
+Fix long subscriptions https://github.com/micropython/micropython-lib/pull/303
+Last will ? https://github.com/micropython/micropython-lib/issues/304
+Force close socket ? https://github.com/micropython/micropython-lib/pull/243
+uMQTT https://github.com/micropython/micropython-lib/pull/205
+umqtt hangs when connecting to a MQTT v3.1 implementation on SUBACK https://github.com/micropython/micropython-lib/pull/205
+
+Is robust necessary?
+
