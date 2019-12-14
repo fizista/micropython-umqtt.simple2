@@ -1,5 +1,6 @@
 import os
 import sys
+import shutil
 from pathlib import Path
 from glob import glob
 from os.path import basename, splitext, join, dirname
@@ -31,7 +32,8 @@ class PythonMinifier(setuptools.Command):
 
     def initialize_options(self):
         """Set default values for options."""
-        # Each user option must be listed here with their default value.
+        if os.path.exists(str(MINIFIED_DIR)):
+            shutil.rmtree(str(MINIFIED_DIR))
         os.makedirs(str(MINIFIED_DIR / 'umqtt'), exist_ok=True)
 
     def finalize_options(self):
