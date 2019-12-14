@@ -1,8 +1,21 @@
-umqtt.simple
-============
+umqtt.simple2
+=============
 
 umqtt is a simple MQTT client for MicroPython. (Note that it uses some
 MicroPython shortcuts and doesn't work with CPython).
+
+Support MQTT Version 3.1.1 only.
+
+Differences between umqtt.simple and umqtt.simple2
+--------------------------------------------------
+* When sending messages from QoS=1, there is no problem with "suspending"
+  the script while waiting for confirmation of message receipt by the server.
+* When subscribing to a channel, there is no problem with "suspending"
+  the script while waiting for confirmation of the subscription by the server.
+* Information about receiving or failing to receive a message from QoS=1 or subscription
+  can only be received by registering a callback using the `set_callback_status()` method.
+* Currently, the module informs about errors in more detailed way. See the umqtt/errno.py file.
+* Aplikacja nie powinna się też zawieszać podczas używania `check_msg()`
 
 Design requirements
 -------------------
@@ -53,7 +66,8 @@ follows MQTT control operations, and maps them to class methods:
 * ``ping()`` - Ping server (response is processed automatically by wait_msg()).
 * ``publish()`` - Publish a message.
 * ``subscribe()`` - Subscribe to a topic.
-* ``set_callback()`` - Set callback for received subscription messages.
+* ``set_callback()`` - Set callback for received subscription messages. call(topic, msg, retained)
+* ``set_callback_status()`` - Set callback for received subscription messages. call(pid, status)
 * ``set_last_will()`` - Set MQTT "last will" message. Should be called
   *before* connect().
 * ``wait_msg()`` - Wait for a server message. A subscription message will be
@@ -69,7 +83,10 @@ and non-blocking version. They should be called periodically in a loop,
 if you process other foreground tasks too.
 
 Note that you don't need to call ``wait_msg()``/``check_msg()`` if you only
-publish messages, never subscribe to them.
+publish messages with QoS==0, never subscribe to them.
+
+If you are using a subscription and/or sending QoS>0 messages, you must run one of these
+commands ( ``wait_msg()`` or ``check_msg()`` ).
 
 For more detailed information about API please see the source code
 (which is quite short and easy to review) and provided examples.
@@ -83,9 +100,11 @@ supported to keep code size small. Besides ClientID, only "clean
 session" parameter is supported for connect as of now.
 
 
-MQTT client with automatic reconnect
-------------------------------------
-
-There's a separate `umqtt.robust` module which builds on `umqtt.simple`
-and adds automatic reconnect support in case of network errors.
-Please see its documentation for further details.
+Additional resources
+--------------------
+* https://mosquitto.org/ - Eclipse Mosquitto is an open source  message broker that implements the MQTT protocol.
+* https://test.mosquitto.org/ - MQTT test server
+* http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html - MQTT 3.1.1 specyfication
+* https://flespi.com/tools/mqtt-board - An open-source MQTT client tool for easy MQTT pub/sub, testing, and demonstration.
+* https://github.com/wialon/gmqtt - Python MQTT client implementation(not for the micropython)
+* https://www.hivemq.com/mqtt-essentials/ - Blog with explanation of MQTT specifications
