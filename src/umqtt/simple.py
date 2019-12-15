@@ -18,6 +18,29 @@ class MQTTClient:
 
     def __init__(self, client_id, server, port=0, user=None, password=None, keepalive=0,
                  ssl=False, ssl_params={}, socket_timeout=1, message_timeout=5):
+        """
+        Default constructor, initializes MQTTClient object.
+
+        :param client_id:  Unique MQTT ID attached to client.
+        :type client_id: str
+        :param server: MQTT host address.
+        :type server str
+        :param port: MQTT Port, typically 1883. If unset, the port number will default to 1883 of 8883 base on ssl.
+        :type port: int
+        :param user: Username if your server requires it.
+        :type user: str
+        :param password: Password if your server requires it.
+        :type password: str
+        :param keepalive:
+        :param ssl: Require SSL for the connection.
+        :type ssl: bool
+        :param ssl_params: Required SSL parameters.
+        :type ssl_params: dict
+        :param socket_timeout: The time in seconds after which the socket interrupts the connection to the server when no data exchange takes place.
+        :type ssl_params: int
+        :param message_timeout: The time in seconds after which the library recognizes that a message with QoS=1 or topic subscription has not been received by the server.
+        :type ssl_params: int
+        """
         if port == 0:
             port = 8883 if ssl else 1883
         self.client_id = client_id
@@ -45,6 +68,13 @@ class MQTTClient:
         self.message_timeout = message_timeout
 
     def _read(self, n):
+        """
+        Private class method.
+
+        :param n: Expected length of read bytes
+        :type n: int
+        :return:
+        """
         # in non-blocking mode, may not download enough data
         msg = self.sock.read(n)
         if msg == b'':  # Connection closed by host (?)
@@ -56,6 +86,15 @@ class MQTTClient:
         return msg
 
     def _write(self, bytes_wr, length=0):
+        """
+        Private class method.
+
+        :param bytes_wr: Bytes sequence for writing
+        :type bytes_wr: bytes
+        :param length: Expected length of write bytes
+        :type n: int
+        :return:
+        """
         # In non-blocking socket mode, the entire block of data may not be sent.
         if length:
             bytes_wr = bytes_wr[:length]
@@ -65,10 +104,21 @@ class MQTTClient:
         return write_bytes
 
     def _send_str(self, s):
+        """
+        Private class method.
+        :param s:
+        :type s: str
+        :return: None
+        """
         self._write(struct.pack("!H", len(s)))
         self._write(s)
 
     def _recv_len(self):
+        """
+        Private class method.
+        :return:
+        :rtype int
+        """
         n = 0
         sh = 0
         while 1:
@@ -81,6 +131,7 @@ class MQTTClient:
     def set_callback(self, f):
         """
         Set callback for received subscription messages.
+
         :param f: callable(topic, msg, retained)
         """
         self.cb = f
@@ -89,6 +140,7 @@ class MQTTClient:
         """
         Set the callback for information about whether the sent packet (QoS=1)
         or subscription was received or not by the server.
+
         :param f: callable(pid, status)
 
         Where:
@@ -100,6 +152,21 @@ class MQTTClient:
         self.cbstat = f
 
     def set_last_will(self, topic, msg, retain=False, qos=0):
+        """
+        Sets the last will and testament of the client. This is used to perform an action by the broker
+        in the event that the client "dies".
+        Learn more at https://www.hivemq.com/blog/mqtt-essentials-part-9-last-will-and-testament/
+
+        :param topic: Topic of LWT. Takes the from "path/to/topic"
+        :type topic: str
+        :param msg: Message to be published to LWT topic.
+        :type msg: str
+        :param retain: Have the MQTT broker retain the message.
+        :type retain: bool
+        :param qos: Sets quality of service level. Accepts values 0 to 2. PLEASE NOTE qos=2 is not actually supported.
+        :type qos: int
+        :return: None
+        """
         assert 0 <= qos <= 2
         assert topic
         self.lw_topic = topic
@@ -108,6 +175,14 @@ class MQTTClient:
         self.lw_retain = retain
 
     def connect(self, clean_session=True):
+        """
+        Establishes connection with the MQTT server.
+
+        :param clean_session: Starts new session on true, resumes past session if false.
+        :type clean_session: bool
+        :return: Connection response.
+        :rtype: int
+        """
         self.sock = socket.socket()
         addr = socket.getaddrinfo(self.server, self.port)[0][-1]
         self.sock.connect(addr)
@@ -154,13 +229,36 @@ class MQTTClient:
         return resp[2] & 1
 
     def disconnect(self):
+        """
+        Disconnects from the MQTT server.
+        :return: None
+        """
         self._write(b"\xe0\0")
         self.sock.close()
 
     def ping(self):
+        """
+        Pings the MQTT server.
+        :return: None
+        """
         self._write(b"\xc0\0")
 
     def publish(self, topic, msg, retain=False, qos=0, dup=False):
+        """
+        Publishes a message to a specified topic.
+
+        :param topic: Topic you wish to publish to. Takes the form "path/to/topic"
+        :type topic: str
+        :param msg: Message to publish to topic.
+        :type msg: str
+        :param retain: Have the MQTT broker retain the message.
+        :type retain: bool
+        :param qos: Sets quality of service level. Accepts values 0 to 2. PLEASE NOTE qos=2 is not actually supported.
+        :type qos: int
+        :param dup: Duplicate delivery of a PUBLISH Control Packet
+        :type dup: bool
+        :return: None
+        """
         if qos == 2:
             raise MQTTException(100)
         pkt = bytearray(b"\x30\0\0\0")
@@ -188,6 +286,15 @@ class MQTTClient:
             return pid
 
     def subscribe(self, topic, qos=0):
+        """
+        Subscribes to a given topic.
+
+        :param topic: Topic you wish to publish to. Takes the form "path/to/topic"
+        :type topic: str
+        :param qos: Sets quality of service level. Accepts values 0 to 2. PLEASE NOTE qos=2 is not actually supported.
+        :type qos: int
+        :return: None
+        """
         assert self.cb is not None, "Subscribe callback is not set"
         pkt = bytearray(b"\x82\0\0\0")
         pid = next(self.newpid)
@@ -198,11 +305,17 @@ class MQTTClient:
         self.rcv_pids[pid] = ticks_add(ticks_ms(), self.message_timeout * 1000)
         return pid
 
-    # Wait for a single incoming MQTT message and process it.
-    # Subscribed messages are delivered to a callback previously
-    # set by .set_callback() method. Other (internal) MQTT
-    # messages processed internally.
     def wait_msg(self, _st=None):
+        """
+        This method waits for a message from the server.
+
+        It processes such messages:
+        - response to PING
+        - messages from subscribed topics that are processed by functions set by the set_callback method.
+        - reply from the server that he received a QoS=1 message or subscribed to a topic
+
+        :return: None
+        """
         res = self._read(1)  # Throws OSError on WiFi fail
         # Real mode without blocking
         self.sock.settimeout(_st)
@@ -268,9 +381,13 @@ class MQTTClient:
         elif op & 6 == 4:
             raise MQTTException(-1)
 
-    # Checks whether a pending message from server is available.
-    # If not, returns immediately with None. Otherwise, does
-    # the same processing as wait_msg.
     def check_msg(self):
+        """
+        Checks whether a pending message from server is available.
+        If not, returns immediately with None. Otherwise, does
+        the same processing as wait_msg.
+
+        :return: None
+        """
         self.sock.setblocking(False)
         return self.wait_msg(_st=self.socket_timeout)

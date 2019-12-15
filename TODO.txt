@@ -1,6 +1,6 @@
 Add tests
 Push package to PyPi
-Add documentation methods https://github.com/micropython/micropython-lib/pull/323/commits/8a4d351a8fafc1c0e3cf5dfabe0e37a7f0988013
+
 Test SSL https://github.com/micropython/micropython-lib/issues/249  https://docs.micropython.org/en/latest/library/ussl.html
 Fix long subscriptions https://github.com/micropython/micropython-lib/pull/303
 Last will ? https://github.com/micropython/micropython-lib/issues/304

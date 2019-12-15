@@ -6,6 +6,9 @@ MicroPython shortcuts and doesn't work with CPython).
 
 Support MQTT Version 3.1.1 only.
 
+It certainly works with micropython ports: esp8266 and esp32. It should also
+work with other ports, but the library was not tested under other ports.
+
 Differences between umqtt.simple and umqtt.simple2
 --------------------------------------------------
 * When sending messages from QoS=1, there is no problem with "suspending"
