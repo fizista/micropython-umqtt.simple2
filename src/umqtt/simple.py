@@ -160,11 +160,11 @@ class MQTTClient:
     def ping(self):
         self._write(b"\xc0\0")
 
-    def publish(self, topic, msg, retain=False, qos=0, dup=0):
+    def publish(self, topic, msg, retain=False, qos=0, dup=False):
         if qos == 2:
             raise MQTTException(100)
         pkt = bytearray(b"\x30\0\0\0")
-        pkt[0] |= qos << 1 | retain | dup << 3
+        pkt[0] |= qos << 1 | retain | int(dup) << 3
         sz = 2 + len(topic) + len(msg)
         if qos > 0:
             sz += 2
