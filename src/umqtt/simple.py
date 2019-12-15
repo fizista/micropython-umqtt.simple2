@@ -92,8 +92,10 @@ class MQTTClient:
         :param f: callable(pid, status)
 
         Where:
-            status = -1 - timeout
+            status = 0 - timeout
             status = 1 - successfully delivered
+            status = 2 - Unknown PID. It is also possible that the PID is outdated,
+                         i.e. it came out of the message timeout.
         """
         self.cbstat = f
 
@@ -224,7 +226,7 @@ class MQTTClient:
                 self.rcv_pids.pop(pid)
                 self.cbstat(pid, 1)
             else:
-                raise MQTTException(5)
+                self.cbstat(pid, 2)
 
         if op == 0x90:  # SUBACK
             resp = self._read(4)
@@ -242,7 +244,7 @@ class MQTTClient:
         for pid, timeout in self.rcv_pids.items():
             if ticks_diff(timeout, curr_tick) <= 0:
                 self.rcv_pids.pop(pid)
-                self.cbstat(pid, -1)
+                self.cbstat(pid, 0)
 
         if op & 0xf0 != 0x30:
             return op
