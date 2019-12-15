@@ -2,6 +2,7 @@ import os
 import sys
 import shutil
 from pathlib import Path
+from filecmp import dircmp
 from glob import glob
 from os.path import basename, splitext, join, dirname
 
@@ -28,17 +29,27 @@ class PythonMinifier(setuptools.Command):
     """A custom command to run Python Minifier"""
 
     description = 'run Python Minifier on Python source files'
-    user_options = []
+    user_options = [
+        ('minified-dir=', 'm', 'Path where the result is to be saved.'),
+    ]
 
     def initialize_options(self):
         """Set default values for options."""
-        if os.path.exists(str(MINIFIED_DIR)):
-            shutil.rmtree(str(MINIFIED_DIR))
-        os.makedirs(str(MINIFIED_DIR / 'umqtt'), exist_ok=True)
+        self.minified_dir = str(MINIFIED_DIR)
 
     def finalize_options(self):
         """Post-process options."""
-        pass
+        if self.minified_dir == str(MINIFIED_DIR):
+            if not os.path.exists(str(MINIFIED_DIR)):
+                os.mkdir(str(MINIFIED_DIR))
+
+        if not os.path.isdir(self.minified_dir):
+            raise Exception("Directory does not exist: {0}".format(self.minified_dir))
+
+        if os.path.exists(str(Path(self.minified_dir) / 'umqtt')):
+            shutil.rmtree(str(Path(self.minified_dir) / 'umqtt'))
+        os.makedirs(str(Path(self.minified_dir) / 'umqtt'), exist_ok=True)
+        print('OUT directory: ', self.minified_dir)
 
     def run(self):
         """Run command."""
@@ -65,7 +76,7 @@ class PythonMinifier(setuptools.Command):
                     remove_object_base=False,
                     convert_posargs_to_args=False
                 )
-                with open(str(MINIFIED_DIR / 'umqtt' / file), 'w') as f:
+                with open(str(Path(self.minified_dir) / 'umqtt' / file), 'w') as f:
                     f.write(out)
 
 
@@ -122,6 +133,22 @@ class SDistCommand(sdist_upip.sdist):
 
     def run(self):
         self.run_command('minify')
+
+        def print_diff_files(dcmp):
+            is_diff = False
+            for name in dcmp.diff_files:
+                print("diff_file %s found in %s and %s" % (name, dcmp.left, dcmp.right))
+                is_diff = True
+            for sub_dcmp in dcmp.subdirs.values():
+                is_diff = is_diff or print_diff_files(sub_dcmp)
+            return is_diff
+
+        dcmp = dircmp(str(MINIFIED_DIR), 'src_minimized')
+        if print_diff_files(dcmp):
+            raise Exception('There are differences in minimized files. '
+                            'Compare %s and %s directories. They must be identical.' %
+                            (str(MINIFIED_DIR), 'src_minimized'))
+
         super(SDistCommand, self).run()
 
 
