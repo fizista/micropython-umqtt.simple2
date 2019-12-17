@@ -71,10 +71,10 @@ class TestMQTT:
         raise Exception('timeout')
 
     def disable_net(self):
-        pass
+        raise RuntimeError('Not implemented method')
 
     def enable_net(self):
-        pass
+        raise RuntimeError('Not implemented method')
 
     def get_topic(self, test_name):
         return '%s/umqtt.simple2/%s/' % (self.msg_id, test_name)
