@@ -7,8 +7,7 @@ class MQTTException(Exception):
     pass
 
 
-def pid_gen():
-    pid = 0
+def pid_gen(pid=0):
     while True:
         pid = pid + 1 if pid < 65535 else 1
         yield pid
