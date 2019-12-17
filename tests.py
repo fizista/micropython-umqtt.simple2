@@ -36,13 +36,22 @@ class MQTTClient(_MQTTClient):
 
 class TestMQTT:
     def __init__(self, *args, **kwargs):
-        print('MQTT connection args:', args, kwargs)
-        self.client = MQTTClient(*args, **kwargs)
+        self.mqtt_client_args = (args, kwargs)
         self.msg_id = args[0]
-        self.client.set_callback(self.sub_cb)
-        self.client.set_callback_status(self.stat_cb)
         self.subsctiption_out = None
         self.status_out = None
+        self.client = None
+
+    def init_mqtt_client(self):
+        print('MQTT connection args:', self.mqtt_client_args[0], self.mqtt_client_args[0])
+        try:
+            if self.client:
+                self.client.disconnect()
+        except:
+            pass
+        self.client = MQTTClient(*self.mqtt_client_args[0], **self.mqtt_client_args[1])
+        self.client.set_callback(self.sub_cb)
+        self.client.set_callback_status(self.stat_cb)
 
     def sub_cb(self, topic, msg, retained):
         print('TOPIC: %s MSG: %s R: %s' % (topic, msg, retained))
@@ -107,6 +116,7 @@ class TestMQTT:
             print('All the tests were finished successfully!')
 
     def run_test(self, test_name):
+        self.init_mqtt_client()
         self.subsctiption_out = None
         self.status_out = None
         test = getattr(self, test_name)
