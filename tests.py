@@ -1,6 +1,6 @@
 import utime
 from ubinascii import hexlify
-from umqtt.simple2 import MQTTClient as _MQTTClient, MQTTException
+from umqtt.simple2 import MQTTClient as _MQTTClient, MQTTException, pid_gen
 
 
 def debug_print(data):
@@ -16,6 +16,10 @@ def debug_print(data):
 
 
 class MQTTClient(_MQTTClient):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.newpid = pid_gen(65535 - 1)
 
     def _read(self, n):
         out = super()._read(n)
@@ -161,7 +165,10 @@ class TestMQTT:
 
     def test_subscribe_qos_0(self, topic):
         self.client.connect()
-        self.client.subscribe(topic + '#')
+        pid = self.client.subscribe(topic + '#')
+        out_pid, status = self.get_status_out(pid=pid)
+        assert status == 1
+        assert pid == 65535
         msg_in = 'abc123'
         self.client.publish(topic, msg_in, qos=1)
         msg_out = self.get_subscription_out()[1]
