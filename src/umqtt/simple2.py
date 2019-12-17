@@ -305,6 +305,13 @@ class MQTTClient:
         self.rcv_pids[pid] = ticks_add(ticks_ms(), self.message_timeout * 1000)
         return pid
 
+    def _message_timeout(self):
+        curr_tick = ticks_ms()
+        for pid, timeout in self.rcv_pids.items():
+            if ticks_diff(timeout, curr_tick) <= 0:
+                self.rcv_pids.pop(pid)
+                self.cbstat(pid, 0)
+
     def wait_msg(self, _st=None):
         """
         This method waits for a message from the server.
@@ -320,6 +327,7 @@ class MQTTClient:
         # Real mode without blocking
         self.sock.settimeout(_st)
         if res is None:
+            self._message_timeout()
             return None
         if res == b"\xd0":  # PINGRESP
             sz = self._read(1)[0]
@@ -353,11 +361,7 @@ class MQTTClient:
             else:
                 raise MQTTException(5)
 
-        curr_tick = ticks_ms()
-        for pid, timeout in self.rcv_pids.items():
-            if ticks_diff(timeout, curr_tick) <= 0:
-                self.rcv_pids.pop(pid)
-                self.cbstat(pid, 0)
+        self._message_timeout()
 
         if op & 0xf0 != 0x30:
             return op
