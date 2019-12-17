@@ -102,6 +102,16 @@ QoS 0 and 1 are supported for both publish and subscribe. QoS2 isn't
 supported to keep code size small. Besides ClientID, only "clean
 session" parameter is supported for connect as of now.
 
+Simple library testing
+----------------------
+To test if the library works well with your device and MQTT broker,
+use the TestMQTT class from the `tests.py` module.
+
+If you don't have your own MQTT broker yet, you can use the free MQTT test broker (test.mosquitto.org).
+
+There is also a sample file `main.py`(`example_test_main.py`),
+In this file we add only network configuration. Upload this file to your device with `umqtt.simple2`
+library and `tests.py` module. Then reset the device and watch the results in the console.
 
 Additional resources
 --------------------
