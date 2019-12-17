@@ -16,6 +16,7 @@ def debug_print(data):
 
 
 class MQTTClient(_MQTTClient):
+    MAX_DBG_LEN = 80
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -24,13 +25,13 @@ class MQTTClient(_MQTTClient):
     def _read(self, n):
         out = super()._read(n)
         if type(out) == bytes:
-            debug_print(out)
+            debug_print(out[:self.MAX_DBG_LEN])
         else:
             print('READ: %s' % out)
         return out
 
     def _write(self, bytes_wr, length=0):
-        debug_print(bytes_wr)
+        debug_print(bytes_wr[:self.MAX_DBG_LEN])
         return super()._write(bytes_wr, length)
 
 
