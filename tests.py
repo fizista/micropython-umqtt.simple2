@@ -49,6 +49,7 @@ class TestMQTT:
         self.status_out = (pid, status)
 
     def get_subscription_out(self, timeout=5):
+        print('WAIT SUB: timeout=%d' % (timeout,))
         for i in range(timeout):
             self.client.check_msg()
             if self.subsctiption_out != None:
@@ -57,14 +58,18 @@ class TestMQTT:
             utime.sleep(1)
         raise Exception('timeout')
 
-    def get_status_out(self, timeout=5):
-        for i in range(timeout):
+    def get_status_out(self, timeout=5, pid=None):
+        print('WAIT STAT: timeout=%d pid=%s' % (timeout, pid))
+        for i in range(timeout + 1):
+            utime.sleep(1)
             self.client.check_msg()
             if self.status_out != None:
                 o = self.status_out
                 self.status_out = None
+                if pid:
+                    if pid != o[0]:
+                        continue
                 return o
-            utime.sleep(1)
         raise Exception('timeout')
 
     def disable_net(self):
@@ -85,6 +90,7 @@ class TestMQTT:
             'test_subscribe_qos_2',
             'test_subscribe_long_topic',
             'test_publish_qos_1',
+            'test_publish_qos_1_no_puback',
             'test_publish_qos_2',
             'test_publish_retain',
         ]
@@ -102,6 +108,7 @@ class TestMQTT:
         test = getattr(self, test_name)
         print('RUN [%s]' % test_name)
         test_pass = True
+        self.enable_net()
         try:
             test(self.get_topic(test_name))
         except Exception as e:
@@ -119,9 +126,17 @@ class TestMQTT:
     def test_publish_qos_1(self, topic):
         self.client.connect()
         pid = self.client.publish(topic, 'test QoS 1', qos=1)
-        out_pid, status = self.get_status_out()
-        assert pid == out_pid
+        out_pid, status = self.get_status_out(pid=pid)
         assert status == 1
+        self.client.disconnect()
+
+    def test_publish_qos_1_no_puback(self, topic):
+        self.client.connect()
+        pid = self.client.publish(topic, 'test QoS 1', qos=1)
+        pid = next(self.client.newpid)
+        self.client.rcv_pids[pid] = utime.ticks_add(utime.ticks_ms(), self.client.message_timeout * 1000)
+        out_pid, status = self.get_status_out(10, pid=pid)
+        assert status == 0
         self.client.disconnect()
 
     def test_publish_qos_2(self, topic):
