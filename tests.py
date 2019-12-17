@@ -39,9 +39,6 @@ class TestMQTT:
         self.client.set_callback_status(self.stat_cb)
         self.subsctiption_out = None
         self.status_out = None
-        # self.client.set_callback(self.sub_cb)
-        # self.client.connect()
-        # self.client.subscribe(b"foo_topic")
 
     def sub_cb(self, topic, msg, retained):
         print('TOPIC: %s MSG: %s R: %s' % (topic, msg, retained))
