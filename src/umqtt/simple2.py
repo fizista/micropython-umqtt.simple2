@@ -179,8 +179,8 @@ class MQTTClient:
 
         :param clean_session: Starts new session on true, resumes past session if false.
         :type clean_session: bool
-        :return: Connection response.
-        :rtype: int
+        :return: Existing persistent session of the client from previous interactions.
+        :rtype: bool
         """
         self.sock = socket.socket()
         addr = socket.getaddrinfo(self.server, self.port)[0][-1]
@@ -228,7 +228,7 @@ class MQTTClient:
                 raise MQTTException(20 + resp[3])
             else:
                 raise MQTTException(20, resp[3])
-        return resp[2] & 1
+        return resp[2] & 1 # Is existing persistent session of the client from previous interactions.
 
     def disconnect(self):
         """
