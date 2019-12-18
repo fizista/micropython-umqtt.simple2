@@ -233,7 +233,6 @@ class MQTTClient:
             assert self.keepalive < 65536
             msg[8] |= self.keepalive >> 8
             msg[9] |= self.keepalive & 0x00FF
-        # TODO: We need to see if everything works. 3.1.2.5 Will Flag 3.1.2.6 Will QoS
         if self.lw_topic:
             sz += 2 + len(self.lw_topic) + 2 + len(self.lw_msg)
             msg[7] |= 0x4 | (self.lw_qos & 0x1) << 3 | (self.lw_qos & 0x2) << 3

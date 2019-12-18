@@ -139,6 +139,7 @@ class TestMQTT:
             'test_publish_qos_1_no_puback',
             'test_publish_qos_2',
             'test_publish_retain',
+            'test_publish_lastwill',
         ]
         for test_name in tests:
             if not self.run_test(test_name):
@@ -238,3 +239,21 @@ class TestMQTT:
         msg_out = self.get_subscription_out()[1]
         assert msg_in == msg_out.decode('ascii')
         self.client.disconnect()
+
+    def test_publish_lastwill(self, topic):
+        self.client.set_last_will(topic, 'offline', True, 1)
+
+        self.client.connect()
+        self.client.publish(topic, 'online', retain=True, qos=1)
+        self.client.subscribe(topic)
+        msg_out = self.get_subscription_out()[1]
+        assert b'online' == msg_out
+        self.client.sock.close()
+        utime.sleep(1)
+
+        client_2 = self.init_mqtt_client('_2')
+        client_2.connect()
+        client_2.subscribe(topic)
+        msg_out = self.get_subscription_out(clientid_postfix='_2')[1]
+        assert 'offline' == msg_out.decode('ascii')
+        client_2.disconnect()
