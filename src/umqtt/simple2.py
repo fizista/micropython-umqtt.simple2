@@ -224,7 +224,10 @@ class MQTTClient:
         resp = self._read(4)
         assert resp[0] == 0x20 and resp[1] == 0x02
         if resp[3] != 0:
-            raise MQTTException(6, resp[3])
+            if resp[3] >=1 and resp[3] <= 5:
+                raise MQTTException(20 + resp[3])
+            else:
+                raise MQTTException(20, resp[3])
         return resp[2] & 1
 
     def disconnect(self):
