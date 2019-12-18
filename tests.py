@@ -8,11 +8,19 @@ def debug_print(data):
     for i, d in enumerate(data):
         if type(d) == str:
             d = ord(d)
-        if d > 31 and d not in (127, 144):
+        if d > 31 and d < 127:
             print(chr(d), end='')
         else:
             print('.', end='')
     print('*/')
+
+
+def debug_func_name(f):
+    def deco(*a, **k):
+        print('FUNC: %s' % f.__name__)
+        return f(*a, **k)
+
+    return deco
 
 
 class MQTTClient(_MQTTClient):
@@ -25,14 +33,23 @@ class MQTTClient(_MQTTClient):
     def _read(self, n):
         out = super()._read(n)
         if type(out) == bytes:
+            print(' R(%3d) - ' % len(out), end='')
             debug_print(out[:self.MAX_DBG_LEN])
         else:
-            print('READ: %s' % out)
+            print(' R(---) - %s' % out)
         return out
 
-    def _write(self, bytes_wr, length=0):
+    def _write(self, bytes_wr, *args, **kwargs):
+        print(' W(%3d,%3s) - ' % (len(bytes_wr), args[0] if args else '---'), end='')
         debug_print(bytes_wr[:self.MAX_DBG_LEN])
-        return super()._write(bytes_wr, length)
+        return super()._write(bytes_wr, *args, **kwargs)
+
+    connect = debug_func_name(_MQTTClient.connect)
+    disconnect = debug_func_name(_MQTTClient.disconnect)
+    ping = debug_func_name(_MQTTClient.ping)
+    publish = debug_func_name(_MQTTClient.publish)
+    subscribe = debug_func_name(_MQTTClient.subscribe)
+    wait_msg = debug_func_name(_MQTTClient.wait_msg)
 
 
 class TestMQTT:
