@@ -194,8 +194,8 @@ class TestMQTT:
 
     def test_subscribe_long_topic(self, topic):
         self.client.connect()
-        topic += '1234567890/1234567890/1234567890/1234567890/1234567890/1234567890/1234567890/1234567890/1234567890/1234567890/1234567890/1234567890/1234567890/1234567890/1234567890/1234567890/1234567890/1234567890/1234567890/1234567890/1234567890/1234567890/1234567890/1234567890/1234567890/1234567890/1234567890/1234567890/'
-        self.client.subscribe(topic + '#')
+        topic = topic + '3' * (500 - len(topic))
+        self.client.subscribe(topic + '/#')
         msg_in = 'abc123'
         self.client.publish(topic, msg_in, qos=1)
         msg_out = self.get_subscription_out()[1]
