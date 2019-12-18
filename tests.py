@@ -56,47 +56,62 @@ class TestMQTT:
     def __init__(self, *args, **kwargs):
         self.mqtt_client_args = (args, kwargs)
         self.msg_id = args[0]
-        self.subsctiption_out = None
-        self.status_out = None
+        self.subsctiption_out = {}
+        self.status_out = {}
+        self.clients = {}
         self.client = None
 
-    def init_mqtt_client(self):
-        print('MQTT connection args:', self.mqtt_client_args[0], self.mqtt_client_args[0])
-        try:
-            if self.client:
-                self.client.disconnect()
-        except:
-            pass
-        self.client = MQTTClient(*self.mqtt_client_args[0], **self.mqtt_client_args[1])
-        self.client.set_callback(self.sub_cb)
-        self.client.set_callback_status(self.stat_cb)
+    def init_mqtt_client(self, clientid_postfix='_1'):
+        args = list(self.mqtt_client_args[0][:])
+        kwargs = self.mqtt_client_args[1].copy()
+        if len(args) > 0:
+            args[0] += clientid_postfix
+        if 'client_id' in kwargs:
+            kwargs['client_id'] += clientid_postfix
+        print('MQTT connection args:', args, kwargs)
+        client = MQTTClient(*args, **kwargs)
+        client.set_callback(self.sub_cb_gen(clientid_postfix))
+        client.set_callback_status(self.stat_cb_gen(clientid_postfix))
+        self.subsctiption_out[clientid_postfix] = None
+        self.status_out[clientid_postfix] = None
+        self.clients[clientid_postfix] = client
+        return client
 
-    def sub_cb(self, topic, msg, retained):
-        print('TOPIC: %s MSG: %s R: %s' % (topic, msg, retained))
-        self.subsctiption_out = (topic, msg, retained)
+    def sub_cb_gen(self, clientid_postfix='_1'):
+        def sub_cb(topic, msg, retained):
+            print('TOPIC: %s MSG: %s R: %s' % (topic, msg, retained))
+            self.subsctiption_out[clientid_postfix] = (topic, msg, retained)
 
-    def stat_cb(self, pid, status):
-        print('PID: %s STATUS: %d' % (pid, status))
-        self.status_out = (pid, status)
+        return sub_cb
 
-    def get_subscription_out(self, timeout=5):
+    def stat_cb_gen(self, clientid_postfix='_1'):
+        def stat_cb(pid, status):
+            print('PID: %s STATUS: %d' % (pid, status))
+            self.status_out[clientid_postfix] = (pid, status)
+
+        return stat_cb
+
+    def get_subscription_out(self, timeout=5, clientid_postfix='_1'):
         print('WAIT SUB: timeout=%d' % (timeout,))
+        client = self.clients[clientid_postfix]
         for i in range(timeout):
-            self.client.check_msg()
-            if self.subsctiption_out != None:
-                o = self.subsctiption_out
+            client.check_msg()
+            if clientid_postfix in self.subsctiption_out and self.subsctiption_out[clientid_postfix] != None:
+                o = self.subsctiption_out[clientid_postfix]
+                self.subsctiption_out[clientid_postfix] = None
                 return o
             utime.sleep(1)
         raise Exception('timeout')
 
-    def get_status_out(self, timeout=5, pid=None):
+    def get_status_out(self, timeout=5, pid=None, clientid_postfix='_1'):
         print('WAIT STAT: timeout=%d pid=%s' % (timeout, pid))
+        client = self.clients[clientid_postfix]
         for i in range(timeout + 1):
             utime.sleep(1)
-            self.client.check_msg()
-            if self.status_out != None:
-                o = self.status_out
-                self.status_out = None
+            client.check_msg()
+            if clientid_postfix in self.status_out and self.status_out[clientid_postfix] != None:
+                o = self.status_out[clientid_postfix]
+                self.status_out[clientid_postfix] = None
                 if pid:
                     if pid != o[0]:
                         continue
@@ -134,9 +149,14 @@ class TestMQTT:
             print('All the tests were finished successfully!')
 
     def run_test(self, test_name):
-        self.init_mqtt_client()
-        self.subsctiption_out = None
-        self.status_out = None
+        try:
+            if self.client:
+                self.client.disconnect()
+        except:
+            pass
+        self.client = self.init_mqtt_client()
+        self.subsctiption_out = {}
+        self.status_out = {}
         test = getattr(self, test_name)
         print('RUN [%s]' % test_name)
         test_pass = True
