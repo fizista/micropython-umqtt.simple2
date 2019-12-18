@@ -84,7 +84,7 @@ class MQTTClient:
             self.last_rx = ticks_ms()
         return msg
 
-    def _write(self, bytes_wr, length=0):
+    def _write(self, bytes_wr, *args, **kwargs):
         """
         Private class method.
 
@@ -95,12 +95,7 @@ class MQTTClient:
         :return:
         """
         # In non-blocking socket mode, the entire block of data may not be sent.
-        if length:
-            bytes_wr = bytes_wr[:length]
-        write_bytes = self.sock.write(bytes_wr)
-        if write_bytes != len(bytes_wr):
-            raise MQTTException(3)
-        return write_bytes
+        return self.sock.write(bytes_wr, *args, **kwargs)
 
     def _send_str(self, s):
         """
