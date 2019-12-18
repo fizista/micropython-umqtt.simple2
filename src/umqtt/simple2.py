@@ -109,7 +109,8 @@ class MQTTClient:
         :type s: str
         :return: None
         """
-        self._write(struct.pack("!H", len(s)))
+        assert len(s) < 65536
+        self._write(len(s).to_bytes(2, 'big'))
         self._write(s)
 
     def _recv_len(self):
@@ -126,6 +127,15 @@ class MQTTClient:
             if not b & 0x80:
                 return n
             sh += 7
+
+    def _varlen_encode(self, value, buf, offset=0):
+        assert value < 268435456  # 2**28, i.e. max. four 7-bit bytes
+        while value > 0x7f:
+            buf[offset] = (value & 0x7f) | 0x80
+            value >>= 7
+            offset += 1
+        buf[offset] = value
+        return offset + 1
 
     def set_callback(self, f):
         """
@@ -188,8 +198,29 @@ class MQTTClient:
         if self.ssl:
             import ussl
             self.sock = ussl.wrap_socket(self.sock, **self.ssl_params)
+        # Byte nr - desc
+        # 1 - \x10 0001 - Connect Command, 0000 - Reserved
+        # 2 - Remaining Length
+        # PROTOCOL NAME (3.1.2.1 Protocol Name)
+        # 3,4 - protocol name length len('MQTT')
+        # 5-8 = 'MQTT'
+        # PROTOCOL LEVEL (3.1.2.2 Protocol Level)
+        # 9 - mqtt version 0x04
+        # CONNECT FLAGS
+        # 10 - connection flags
+        #  X... .... = User Name Flag
+        #  .X.. .... = Password Flag
+        #  ..X. .... = Will Retain
+        #  ...X X... = QoS Level
+        #  .... .X.. = Will Flag
+        #  .... ..X. = Clean Session Flag
+        #  .... ...0 = (Reserved) It must be 0!
+        # KEEP ALIVE
+        # 11,12 - keepalive
+        # 13,14 - client ID length
+        # 15-15+len(client_id) - byte(client_id)
         premsg = bytearray(b"\x10\0\0\0\0\0")
-        msg = bytearray(b"\x04MQTT\x04\x02\0\0")
+        msg = bytearray(b"\0\x04MQTT\x04\0\0\0")
 
         sz = 10 + 2 + len(self.client_id)
 
@@ -198,25 +229,23 @@ class MQTTClient:
         if bool(clean_session):
             self.rcv_pids.clear()
         if self.user is not None:
-            sz += 2 + len(self.user) + 2 + len(self.pswd)
-            msg[6] |= 0xC0
+            sz += 2 + len(self.user)
+            msg[7] |= 1 << 7  # User Name Flag
+            if self.pswd is not None:
+                sz += 2 + len(self.pswd)
+                msg[7] |= 1 << 6  # # Password Flag
         if self.keepalive:
             assert self.keepalive < 65536
-            msg[7] |= self.keepalive >> 8
-            msg[8] |= self.keepalive & 0x00FF
+            msg[8] |= self.keepalive >> 8
+            msg[9] |= self.keepalive & 0x00FF
+        # TODO: We need to see if everything works. 3.1.2.5 Will Flag 3.1.2.6 Will QoS
         if self.lw_topic:
             sz += 2 + len(self.lw_topic) + 2 + len(self.lw_msg)
-            msg[6] |= 0x4 | (self.lw_qos & 0x1) << 3 | (self.lw_qos & 0x2) << 3
-            msg[6] |= self.lw_retain << 5
+            msg[7] |= 0x4 | (self.lw_qos & 0x1) << 3 | (self.lw_qos & 0x2) << 3
+            msg[7] |= self.lw_retain << 5
 
-        i = 1
-        while sz > 0x7f:
-            premsg[i] = (sz & 0x7f) | 0x80
-            sz >>= 7
-            i += 1
-        premsg[i] = sz
-
-        self._write(premsg, i + 2)
+        plen = self._varlen_encode(sz, premsg, 1)
+        self._write(premsg, plen)
         self._write(msg)
         self._send_str(self.client_id)
         if self.lw_topic:
@@ -224,7 +253,8 @@ class MQTTClient:
             self._send_str(self.lw_msg)
         if self.user is not None:
             self._send_str(self.user)
-            self._send_str(self.pswd)
+            if self.pswd is not None:
+                self._send_str(self.pswd)
         resp = self._read(4)
         assert resp[0] == 0x20 and resp[1] == 0x02
         if resp[3] != 0:
