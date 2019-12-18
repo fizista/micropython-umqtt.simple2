@@ -256,13 +256,13 @@ class MQTTClient:
             if self.pswd is not None:
                 self._send_str(self.pswd)
         resp = self._read(4)
-        assert resp[0] == 0x20 and resp[1] == 0x02
+        assert resp[0] == 0x20 and resp[1] == 0x02  # control packet type, Remaining Length == 2
         if resp[3] != 0:
-            if resp[3] >=1 and resp[3] <= 5:
+            if resp[3] >= 1 and resp[3] <= 5:
                 raise MQTTException(20 + resp[3])
             else:
                 raise MQTTException(20, resp[3])
-        return resp[2] & 1 # Is existing persistent session of the client from previous interactions.
+        return resp[2] & 1  # Is existing persistent session of the client from previous interactions.
 
     def disconnect(self):
         """
