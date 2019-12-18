@@ -18,7 +18,7 @@ Differences between umqtt.simple and umqtt.simple2
 * Information about receiving or failing to receive a message from QoS=1 or subscription
   can only be received by registering a callback using the `set_callback_status()` method.
 * Currently, the module informs about errors in more detailed way. See the umqtt/errno.py file.
-* Aplikacja nie powinna się też zawieszać podczas używania `check_msg()`
+* The application should also not hang up when using `check_msg()`
 
 Design requirements
 -------------------
