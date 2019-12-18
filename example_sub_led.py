@@ -4,7 +4,6 @@ import ubinascii
 import machine
 import micropython
 
-
 # ESP8266 ESP-12 modules have blue, active-low LED on GPIO2, replace
 # with something else if needed.
 led = Pin(2, Pin.OUT, value=1)
@@ -14,10 +13,10 @@ SERVER = "192.168.1.35"
 CLIENT_ID = ubinascii.hexlify(machine.unique_id())
 TOPIC = b"led"
 
-
 state = 0
 
-def sub_cb(topic, msg):
+
+def sub_cb(topic, msg, r):
     global state
     print((topic, msg))
     if msg == b"on":
@@ -43,7 +42,7 @@ def main(server=SERVER):
 
     try:
         while 1:
-            #micropython.mem_info()
+            # micropython.mem_info()
             c.wait_msg()
     finally:
         c.disconnect()

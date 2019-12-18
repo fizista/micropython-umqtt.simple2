@@ -1,20 +1,22 @@
 import time
 from umqtt.simple import MQTTClient
 
+
 # Publish test messages e.g. with:
 # mosquitto_pub -t foo_topic -m hello
 
 # Received messages from subscriptions will be delivered to this callback
-def sub_cb(topic, msg):
-    print((topic, msg))
+def sub_cb(topic, msg, retain):
+    print((topic, msg, retain))
 
-def main(server="localhost"):
+
+def main(server="localhost", blocking_method=False):
     c = MQTTClient("umqtt_client", server)
     c.set_callback(sub_cb)
     c.connect()
     c.subscribe(b"foo_topic")
     while True:
-        if True:
+        if blocking_method:
             # Blocking wait for message
             c.wait_msg()
         else:
@@ -25,6 +27,7 @@ def main(server="localhost"):
             time.sleep(1)
 
     c.disconnect()
+
 
 if __name__ == "__main__":
     main()
