@@ -113,6 +113,11 @@ There is also a sample file `main.py`(`example_test_main.py`),
 In this file we add only network configuration. Upload this file to your device with `umqtt.simple2`
 library and `tests.py` module. Then reset the device and watch the results in the console.
 
+Different problems
+------------------
+* Wrong topic format during subscription - you'll get `OSError: [Errno 104] ECONNRESET` in subscribe()
+  or `MQTTException: 1` in the `wait_msg()/check_msg()`
+
 Additional resources
 --------------------
 * https://mosquitto.org/ - Eclipse Mosquitto is an open source  message broker that implements the MQTT protocol.
