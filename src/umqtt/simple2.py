@@ -319,12 +319,14 @@ class MQTTClient:
         :return: None
         """
         assert self.cb is not None, "Subscribe callback is not set"
-        pkt = bytearray(b"\x82\0\0\0")
+        pkt = bytearray(b"\x82\0\0\0\0\0\0")
         pid = next(self.newpid)
-        struct.pack_into("!BH", pkt, 1, 2 + 2 + len(topic) + 1, pid)
-        self._write(pkt)
+        sz = 2 + 2 + len(topic) + 1
+        plen = self._varlen_encode(sz, pkt, 1)
+        pkt[plen:plen + 2] = pid.to_bytes(2, 'big')
+        self._write(pkt, plen + 2)
         self._send_str(topic)
-        self._write(qos.to_bytes(1, "little"))  # maksymalna wartość QOS jaką może nadawać serwer do klienta
+        self._write(qos.to_bytes(1, "little"))  # maximum QOS value that can be given by the server to the client
         self.rcv_pids[pid] = ticks_add(ticks_ms(), self.message_timeout * 1000)
         return pid
 
@@ -352,6 +354,7 @@ class MQTTClient:
         if res is None:
             self._message_timeout()
             return None
+
         if res == b"\xd0":  # PINGRESP
             sz = self._read(1)[0]
             self.last_rcommand = ticks_ms()
@@ -363,19 +366,26 @@ class MQTTClient:
             sz = self._read(1)
             if sz != b"\x02":
                 raise MQTTException(-1)
-            rcv_pid = self._read(2)
-            pid = rcv_pid[0] << 8 | rcv_pid[1]
-            if pid in self.rcv_pids:
+            rcv_pid = int.from_bytes(self._read(2), 'big')
+            if rcv_pid in self.rcv_pids:
                 self.last_rcommand = ticks_ms()
-                self.rcv_pids.pop(pid)
-                self.cbstat(pid, 1)
+                self.rcv_pids.pop(rcv_pid)
+                self.cbstat(rcv_pid, 1)
             else:
-                self.cbstat(pid, 2)
+                self.cbstat(rcv_pid, 2)
 
-        if op == 0x90:  # SUBACK
+        if op == 0x90:  # SUBACK Packet fixed header
             resp = self._read(4)
+            # Byte - desc
+            # 1 - Remaining Length 2(varible header) + len(payload)=1
+            # 2,3 - PID
+            # 4 - Payload
+            if resp[0] != 0x03:
+                raise MQTTException(40, resp)
             if resp[3] == 0x80:
-                raise MQTTException(-1)
+                raise MQTTException(44)
+            if resp[3] not in (0, 1, 2):
+                raise MQTTException(40, resp)
             pid = resp[2] | (resp[1] << 8)
             if pid in self.rcv_pids:
                 self.last_rcommand = ticks_ms()
