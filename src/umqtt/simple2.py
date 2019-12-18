@@ -389,22 +389,19 @@ class MQTTClient:
         if op & 0xf0 != 0x30:
             return op
         sz = self._recv_len()
-        topic_len = self._read(2)
-        topic_len = (topic_len[0] << 8) | topic_len[1]
+        topic_len = int.from_bytes(self._read(2), 'big')
         topic = self._read(topic_len)
         sz -= topic_len + 2
         if op & 6:
-            pid = self._read(2)
-            pid = pid[0] << 8 | pid[1]
+            pid = int.from_bytes(self.sock.read(2), 'big')
             sz -= 2
         msg = self._read(sz)
         retained = op & 0x01
         self.cb(topic, msg, bool(retained))
         self.last_rcommand = ticks_ms()
         if op & 6 == 2:
-            pkt = bytearray(b"\x40\x02\0\0")  # Send PUBACK
-            struct.pack_into("!H", pkt, 2, pid)
-            self._write(pkt)
+            self._write(b"\x40\x02")  # Send PUBACK
+            self._write(pid.to_bytes(2, 'big'))
         elif op & 6 == 4:
             raise MQTTException(-1)
 
