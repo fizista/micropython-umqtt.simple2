@@ -192,7 +192,11 @@ class MQTTClient:
         msg = bytearray(b"\x04MQTT\x04\x02\0\0")
 
         sz = 10 + 2 + len(self.client_id)
-        msg[6] = clean_session << 1
+
+        msg[7] = bool(clean_session) << 1
+        # Clean session = True, remove current session
+        if bool(clean_session):
+            self.rcv_pids.clear()
         if self.user is not None:
             sz += 2 + len(self.user) + 2 + len(self.pswd)
             msg[6] |= 0xC0
