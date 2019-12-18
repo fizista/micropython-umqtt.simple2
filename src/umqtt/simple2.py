@@ -292,25 +292,17 @@ class MQTTClient:
         """
         if qos == 2:
             raise MQTTException(100)
-        pkt = bytearray(b"\x30\0\0\0")
+        pkt = bytearray(b"\x30\0\0\0\0")
         pkt[0] |= qos << 1 | retain | int(dup) << 3
         sz = 2 + len(topic) + len(msg)
         if qos > 0:
             sz += 2
-        if sz >= 2097152:
-            raise MQTTException(4)
-        i = 1
-        while sz > 0x7f:
-            pkt[i] = (sz & 0x7f) | 0x80
-            sz >>= 7
-            i += 1
-        pkt[i] = sz
-        self._write(pkt, i + 1)
+        plen = self._varlen_encode(sz, pkt, 1)
+        self._write(pkt, plen)
         self._send_str(topic)
         if qos > 0:
             pid = next(self.newpid)
-            struct.pack_into("!H", pkt, 0, pid)
-            self._write(pkt, 2)
+            self._write(pid.to_bytes(2, 'big'))
         self._write(msg)
         if qos > 0:
             self.rcv_pids[pid] = ticks_add(ticks_ms(), self.message_timeout * 1000)
