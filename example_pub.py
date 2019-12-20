@@ -1,4 +1,4 @@
-from umqtt.simple import MQTTClient
+from umqtt.simple2 import MQTTClient
 
 
 # Test reception e.g. with:

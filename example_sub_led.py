@@ -1,4 +1,4 @@
-from umqtt.simple import MQTTClient
+from umqtt.simple2 import MQTTClient
 from machine import Pin
 import ubinascii
 import machine

@@ -1,7 +1,7 @@
 import time
 import ubinascii
 import machine
-from umqtt.simple import MQTTClient
+from umqtt.simple2 import MQTTClient
 from machine import Pin
 
 # Many ESP8266 boards have active-low "flash" button on GPIO0.

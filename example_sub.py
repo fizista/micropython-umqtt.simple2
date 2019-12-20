@@ -1,5 +1,5 @@
 import time
-from umqtt.simple import MQTTClient
+from umqtt.simple2 import MQTTClient
 
 
 # Publish test messages e.g. with:
