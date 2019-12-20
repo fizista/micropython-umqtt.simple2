@@ -308,8 +308,7 @@ class MQTTClient:
         :return: None
         """
         self.sock.settimeout(self.socket_timeout if socket_timeout < 0 else socket_timeout)
-        if qos == 2:
-            raise MQTTException(100)
+        assert qos in (0, 1)
         pkt = bytearray(b"\x30\0\0\0\0")
         pkt[0] |= qos << 1 | retain | int(dup) << 3
         sz = 2 + len(topic) + len(msg)
