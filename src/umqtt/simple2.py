@@ -332,7 +332,7 @@ class MQTTClient:
 
         :param topic: Topic you wish to publish to. Takes the form "path/to/topic"
         :type topic: str
-        :param qos: Sets quality of service level. Accepts values 0 to 2. PLEASE NOTE qos=2 is not actually supported.
+        :param qos: Sets quality of service level. Accepts values 0 to 1. This gives the maximum QoS level at which the Server can send Application Messages to the Client.
         :type qos: int
         :param socket_timeout: -1 = default socket timeout, None - no timeout(blocking), positive number - number of seconds to wait
         :type socket_timeout: int
