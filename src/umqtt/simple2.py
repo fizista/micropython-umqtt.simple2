@@ -338,6 +338,7 @@ class MQTTClient:
         :type socket_timeout: int
         :return: None
         """
+        assert qos in (0, 1)
         self.sock.settimeout(self.socket_timeout if socket_timeout < 0 else socket_timeout)
         assert self.cb is not None, "Subscribe callback is not set"
         pkt = bytearray(b"\x82\0\0\0\0\0\0")
