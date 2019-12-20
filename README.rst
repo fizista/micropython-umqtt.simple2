@@ -1,7 +1,7 @@
 umqtt.simple2
 =============
 
-umqtt is a simple MQTT client for MicroPython. (Note that it uses some
+umqtt.simple2 is a MQTT client for MicroPython. (Note that it uses some
 MicroPython shortcuts and doesn't work with CPython).
 
 Support MQTT Version 3.1.1 only.
