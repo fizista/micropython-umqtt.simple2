@@ -185,18 +185,21 @@ class MQTTClient:
         self.lw_qos = qos
         self.lw_retain = retain
 
-    def connect(self, clean_session=True):
+    def connect(self, clean_session=True, socket_timeout=-1):
         """
         Establishes connection with the MQTT server.
 
         :param clean_session: Starts new session on true, resumes past session if false.
         :type clean_session: bool
+        :param socket_timeout: -1 = default socket timeout, None - no timeout(blocking), positive number - number of seconds to wait
+        :type socket_timeout: int
         :return: Existing persistent session of the client from previous interactions.
         :rtype: bool
         """
         self.sock = socket.socket()
         addr = socket.getaddrinfo(self.server, self.port)[0][-1]
         self.sock.connect(addr)
+        self.sock.settimeout(self.socket_timeout if socket_timeout < 0 else socket_timeout)
         if self.ssl:
             import ussl
             self.sock = ussl.wrap_socket(self.sock, **self.ssl_params)
@@ -265,22 +268,28 @@ class MQTTClient:
                 raise MQTTException(20, resp[3])
         return resp[2] & 1  # Is existing persistent session of the client from previous interactions.
 
-    def disconnect(self):
+    def disconnect(self, socket_timeout=-1):
         """
         Disconnects from the MQTT server.
+        :param socket_timeout: -1 = default socket timeout, None - no timeout(blocking), positive number - number of seconds to wait
+        :type socket_timeout: int
         :return: None
         """
+        self.sock.settimeout(self.socket_timeout if socket_timeout < 0 else socket_timeout)
         self._write(b"\xe0\0")
         self.sock.close()
 
-    def ping(self):
+    def ping(self, socket_timeout=-1):
         """
         Pings the MQTT server.
+        :param socket_timeout: -1 = default socket timeout, None - no timeout(blocking), positive number - number of seconds to wait
+        :type socket_timeout: int
         :return: None
         """
+        self.sock.settimeout(self.socket_timeout if socket_timeout < 0 else socket_timeout)
         self._write(b"\xc0\0")
 
-    def publish(self, topic, msg, retain=False, qos=0, dup=False):
+    def publish(self, topic, msg, retain=False, qos=0, dup=False, socket_timeout=-1):
         """
         Publishes a message to a specified topic.
 
@@ -294,8 +303,11 @@ class MQTTClient:
         :type qos: int
         :param dup: Duplicate delivery of a PUBLISH Control Packet
         :type dup: bool
+        :param socket_timeout: -1 = default socket timeout, None - no timeout(blocking), positive number - number of seconds to wait
+        :type socket_timeout: int
         :return: None
         """
+        self.sock.settimeout(self.socket_timeout if socket_timeout < 0 else socket_timeout)
         if qos == 2:
             raise MQTTException(100)
         pkt = bytearray(b"\x30\0\0\0\0")
@@ -314,7 +326,7 @@ class MQTTClient:
             self.rcv_pids[pid] = ticks_add(ticks_ms(), self.message_timeout * 1000)
             return pid
 
-    def subscribe(self, topic, qos=0):
+    def subscribe(self, topic, qos=0, socket_timeout=-1):
         """
         Subscribes to a given topic.
 
@@ -322,8 +334,11 @@ class MQTTClient:
         :type topic: str
         :param qos: Sets quality of service level. Accepts values 0 to 2. PLEASE NOTE qos=2 is not actually supported.
         :type qos: int
+        :param socket_timeout: -1 = default socket timeout, None - no timeout(blocking), positive number - number of seconds to wait
+        :type socket_timeout: int
         :return: None
         """
+        self.sock.settimeout(self.socket_timeout if socket_timeout < 0 else socket_timeout)
         assert self.cb is not None, "Subscribe callback is not set"
         pkt = bytearray(b"\x82\0\0\0\0\0\0")
         pid = next(self.newpid)
