@@ -209,7 +209,7 @@ class TestMQTT:
         self.client.connect()
         try:
             self.client.publish(topic, 'test QoS 2', qos=2)
-        except MQTTException as e:
+        except AssertionError as e:
             print(e)
         self.client.disconnect()
 
