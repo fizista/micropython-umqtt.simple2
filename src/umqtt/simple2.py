@@ -49,8 +49,10 @@ class MQTTClient:
         self.ssl = ssl
         self.ssl_params = ssl_params
         self.newpid = pid_gen()
-        self.cb = None
-        self.cbstat = lambda p, s: None
+        if not getattr(self, 'cb', None):
+            self.cb = None
+        if not getattr(self, 'cbstat', None):
+            self.cbstat = lambda p, s: None
         self.user = user
         self.pswd = password
         self.keepalive = keepalive
