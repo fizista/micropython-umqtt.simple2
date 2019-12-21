@@ -15,12 +15,8 @@ def debug_print(data):
     print('*/')
 
 
-def debug_func_name(f):
-    def deco(*a, **k):
-        print('FUNC: %s' % f.__name__)
-        return f(*a, **k)
-
-    return deco
+def debug_func_name(f_name):
+    print('FUNC: %s' % f_name)
 
 
 class MQTTClient(_MQTTClient):
@@ -44,12 +40,29 @@ class MQTTClient(_MQTTClient):
         debug_print(bytes_wr[:self.MAX_DBG_LEN])
         return super()._write(bytes_wr, *args, **kwargs)
 
-    connect = debug_func_name(_MQTTClient.connect)
-    disconnect = debug_func_name(_MQTTClient.disconnect)
-    ping = debug_func_name(_MQTTClient.ping)
-    publish = debug_func_name(_MQTTClient.publish)
-    subscribe = debug_func_name(_MQTTClient.subscribe)
-    wait_msg = debug_func_name(_MQTTClient.wait_msg)
+    def connect(self, *a, **k):
+        debug_func_name('connect')
+        return super().connect(*a, **k)
+
+    def disconnect(self, *a, **k):
+        debug_func_name('disconnect')
+        return super().disconnect(*a, **k)
+
+    def ping(self, *a, **k):
+        debug_func_name('ping')
+        return super().ping(*a, **k)
+
+    def publish(self, *a, **k):
+        debug_func_name('publish')
+        return super().publish(*a, **k)
+
+    def subscribe(self, *a, **k):
+        debug_func_name('subscribe')
+        return super().subscribe(*a, **k)
+
+    def wait_msg(self, *a, **k):
+        debug_func_name('wait_msg')
+        return super().wait_msg(*a, **k)
 
 
 class TestMQTT:
