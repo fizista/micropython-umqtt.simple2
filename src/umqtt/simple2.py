@@ -419,13 +419,13 @@ class MQTTClient:
 
         self._message_timeout()
 
-        if op & 0xf0 != 0x30:
+        if op & 0xf0 != 0x30: # 3.3 PUBLISH – Publish message
             return op
         sz = self._recv_len()
         topic_len = int.from_bytes(self._read(2), 'big')
         topic = self._read(topic_len)
         sz -= topic_len + 2
-        if op & 6:
+        if op & 6:  # QoS level > 0
             pid = int.from_bytes(self.sock.read(2), 'big')
             sz -= 2
         msg = self._read(sz)
@@ -433,10 +433,12 @@ class MQTTClient:
         dup = op & 0x08
         self.cb(topic, msg, bool(retained), bool(dup))
         self.last_rcommand = ticks_ms()
-        if op & 6 == 2:
+        if op & 6 == 2:  # QoS==1
             self._write(b"\x40\x02")  # Send PUBACK
             self._write(pid.to_bytes(2, 'big'))
-        elif op & 6 == 4:
+        elif op & 6 == 4:  # QoS==2
+            raise NotImplementedError()
+        elif op & 6 == 6:  # 3.3.1.2 QoS - Reserved – must not be used
             raise MQTTException(-1)
 
     def check_msg(self):
