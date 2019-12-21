@@ -145,7 +145,7 @@ class MQTTClient:
         """
         Set callback for received subscription messages.
 
-        :param f: callable(topic, msg, retained)
+        :param f: callable(topic, msg, retained, duplicate)
         """
         self.cb = f
 
@@ -430,7 +430,8 @@ class MQTTClient:
             sz -= 2
         msg = self._read(sz)
         retained = op & 0x01
-        self.cb(topic, msg, bool(retained))
+        dup = op & 0x08
+        self.cb(topic, msg, bool(retained), bool(dup))
         self.last_rcommand = ticks_ms()
         if op & 6 == 2:
             self._write(b"\x40\x02")  # Send PUBACK

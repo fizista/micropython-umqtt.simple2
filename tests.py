@@ -91,8 +91,8 @@ class TestMQTT:
         return client
 
     def sub_cb_gen(self, clientid_postfix='_1'):
-        def sub_cb(topic, msg, retained):
-            print('TOPIC: %s MSG: %s R: %s' % (topic, msg, retained))
+        def sub_cb(topic, msg, retained, dup):
+            print('TOPIC: %s MSG: %s R: %s D: %s' % (topic, msg, retained, dup))
             self.subsctiption_out[clientid_postfix] = (topic, msg, retained)
 
         return sub_cb

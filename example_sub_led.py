@@ -16,7 +16,7 @@ TOPIC = b"led"
 state = 0
 
 
-def sub_cb(topic, msg, r):
+def sub_cb(topic, msg, r, d):
     global state
     print((topic, msg))
     if msg == b"on":

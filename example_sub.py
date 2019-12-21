@@ -6,8 +6,8 @@ from umqtt.simple2 import MQTTClient
 # mosquitto_pub -t foo_topic -m hello
 
 # Received messages from subscriptions will be delivered to this callback
-def sub_cb(topic, msg, retain):
-    print((topic, msg, retain))
+def sub_cb(topic, msg, retain, dup):
+    print((topic, msg, retain, dup))
 
 
 def main(server="localhost", blocking_method=False):
