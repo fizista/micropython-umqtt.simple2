@@ -360,7 +360,7 @@ class MQTTClient:
                 self.rcv_pids.pop(pid)
                 self.cbstat(pid, 0)
 
-    def wait_msg(self, _st=None):
+    def wait_msg(self, socket_timeout=None):
         """
         This method waits for a message from the server.
 
@@ -373,7 +373,7 @@ class MQTTClient:
         """
         res = self._read(1)  # Throws OSError on WiFi fail
         # Real mode without blocking
-        self.sock.settimeout(_st)
+        self.sock.settimeout(socket_timeout)
         if res is None:
             self._message_timeout()
             return None
@@ -447,4 +447,4 @@ class MQTTClient:
         :return: None
         """
         self.sock.setblocking(False)
-        return self.wait_msg(_st=self.socket_timeout)
+        return self.wait_msg(socket_timeout=self.socket_timeout)
