@@ -141,6 +141,12 @@ class MQTTClient:
         buf[offset] = value
         return offset + 1
 
+    def _sock_timeout(self, socket_timeout=-1):
+        if self.sock:
+            self.sock.settimeout(self.socket_timeout if socket_timeout < 0 else socket_timeout)
+        else:
+            raise MQTTException(28)
+
     def set_callback(self, f):
         """
         Set callback for received subscription messages.
@@ -201,7 +207,7 @@ class MQTTClient:
         self.sock = socket.socket()
         addr = socket.getaddrinfo(self.server, self.port)[0][-1]
         self.sock.connect(addr)
-        self.sock.settimeout(self.socket_timeout if socket_timeout < 0 else socket_timeout)
+        self._sock_timeout(socket_timeout)
         if self.ssl:
             import ussl
             self.sock = ussl.wrap_socket(self.sock, **self.ssl_params)
@@ -279,7 +285,7 @@ class MQTTClient:
         :type socket_timeout: int
         :return: None
         """
-        self.sock.settimeout(self.socket_timeout if socket_timeout < 0 else socket_timeout)
+        self._sock_timeout(socket_timeout)
         self._write(b"\xe0\0")
         self.sock.close()
 
@@ -290,7 +296,7 @@ class MQTTClient:
         :type socket_timeout: int
         :return: None
         """
-        self.sock.settimeout(self.socket_timeout if socket_timeout < 0 else socket_timeout) # If self.sock else exception no connection
+        self._sock_timeout(socket_timeout)  # If self.sock else exception no connection
         self._write(b"\xc0\0")
         self.last_ping = ticks_ms()
 
@@ -312,7 +318,7 @@ class MQTTClient:
         :type socket_timeout: int
         :return: None
         """
-        self.sock.settimeout(self.socket_timeout if socket_timeout < 0 else socket_timeout)
+        self._sock_timeout(socket_timeout)
         assert qos in (0, 1)
         pkt = bytearray(b"\x30\0\0\0\0")
         pkt[0] |= qos << 1 | retain | int(dup) << 3
@@ -343,7 +349,7 @@ class MQTTClient:
         :return: None
         """
         assert qos in (0, 1)
-        self.sock.settimeout(self.socket_timeout if socket_timeout < 0 else socket_timeout)
+        self._sock_timeout(socket_timeout)
         assert self.cb is not None, "Subscribe callback is not set"
         pkt = bytearray(b"\x82\0\0\0\0\0\0")
         pid = next(self.newpid)

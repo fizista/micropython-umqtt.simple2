@@ -12,6 +12,7 @@ ECONREJECT = 22      # Connection refused, identifier rejected
 ECONUNAVAIBLE = 23   # Connection refused, server unavaible
 ECONCREDENTIALS = 24 # Connection refused, bad credentials
 ECONAUTH = 25        # Connection refused, not authorized
+ECONNOT = 28         # No connection
 ECONLENGTH = 29      # Connection, control packet type, Remaining Length != 2
 
 ESUBACKUNKNOWN = 40  # Subscribe confirm unknown fail, SUBACK
