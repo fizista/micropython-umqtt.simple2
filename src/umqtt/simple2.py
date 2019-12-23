@@ -30,7 +30,8 @@ class MQTTClient:
         :type user: str
         :param password: Password if your server requires it.
         :type password: str
-        :param keepalive:
+        :param keepalive: The Keep Alive is a time interval measured in seconds since the last correct control packet was received.
+        :type keepalive: int
         :param ssl: Require SSL for the connection.
         :type ssl: bool
         :param ssl_params: Required SSL parameters.
