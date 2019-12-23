@@ -141,6 +141,13 @@ QoS 0 and 1 are supported for both publish and subscribe. QoS2 isn't
 supported to keep code size small. Besides ClientID, only "clean
 session" parameter is supported for connect as of now.
 
+MQTT client with automatic reconnect
+------------------------------------
+
+There's a separate `umqtt.robust2` ( https://github.com/fizista/micropython-umqtt.robust2 ) module which builds
+on `umqtt.simple2` adds the ability to automatically reconnect if there are problems with the network.
+It is able to send unsent messages itself. And many more...
+
 Simple library testing
 ----------------------
 The current tests are not only to test the code, but also to check it in a real environment. Therefore, a good idea,
