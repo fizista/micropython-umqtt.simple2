@@ -1,5 +1,4 @@
 import usocket as socket
-import ustruct as struct
 from utime import ticks_add, ticks_ms, ticks_diff
 
 
@@ -16,7 +15,7 @@ def pid_gen(pid=0):
 class MQTTClient:
 
     def __init__(self, client_id, server, port=0, user=None, password=None, keepalive=0,
-                 ssl=False, ssl_params={}, socket_timeout=1, message_timeout=5):
+                 ssl=False, ssl_params=None, socket_timeout=1, message_timeout=5):
         """
         Default constructor, initializes MQTTClient object.
 
@@ -30,16 +29,19 @@ class MQTTClient:
         :type user: str
         :param password: Password if your server requires it.
         :type password: str
-        :param keepalive: The Keep Alive is a time interval measured in seconds since the last correct control packet was received.
+        :param keepalive: The Keep Alive is a time interval measured in seconds since the last
+                          correct control packet was received.
         :type keepalive: int
         :param ssl: Require SSL for the connection.
         :type ssl: bool
         :param ssl_params: Required SSL parameters.
         :type ssl_params: dict
-        :param socket_timeout: The time in seconds after which the socket interrupts the connection to the server when no data exchange takes place.
+        :param socket_timeout: The time in seconds after which the socket interrupts the connection to the server when
+                               no data exchange takes place.
         :type ssl_params: int
-        :param message_timeout: The time in seconds after which the library recognizes that a message with QoS=1 or topic subscription has not been received by the server.
-        :type ssl_params: int
+        :param message_timeout: The time in seconds after which the library recognizes that a message with QoS=1
+                                or topic subscription has not been received by the server.
+        :type ssl_params: dict
         """
         if port == 0:
             port = 8883 if ssl else 1883
@@ -48,7 +50,7 @@ class MQTTClient:
         self.server = server
         self.port = port
         self.ssl = ssl
-        self.ssl_params = ssl_params
+        self.ssl_params = ssl_params if ssl_params else {}
         self.newpid = pid_gen()
         if not getattr(self, 'cb', None):
             self.cb = None
@@ -63,7 +65,7 @@ class MQTTClient:
         self.lw_retain = False
         self.rcv_pids = {}  # PUBACK and SUBACK pids awaiting ACK response
 
-        self.last_ping = ticks_ms() # Time of the last PING sent
+        self.last_ping = ticks_ms()  # Time of the last PING sent
         self.last_cpacket = ticks_ms()  # Time of last Control Packet
 
         self.socket_timeout = socket_timeout
@@ -93,7 +95,7 @@ class MQTTClient:
         :param bytes_wr: Bytes sequence for writing
         :type bytes_wr: bytes
         :param length: Expected length of write bytes
-        :type n: int
+        :type length: int
         :return:
         """
         # In non-blocking socket mode, the entire block of data may not be sent.
@@ -110,7 +112,7 @@ class MQTTClient:
         """
         Private class method.
         :param s:
-        :type s: str
+        :type s: byte
         :return: None
         """
         assert len(s) < 65536
@@ -177,9 +179,9 @@ class MQTTClient:
         Learn more at https://www.hivemq.com/blog/mqtt-essentials-part-9-last-will-and-testament/
 
         :param topic: Topic of LWT. Takes the from "path/to/topic"
-        :type topic: str
+        :type topic: byte
         :param msg: Message to be published to LWT topic.
-        :type msg: str
+        :type msg: byte
         :param retain: Have the MQTT broker retain the message.
         :type retain: bool
         :param qos: Sets quality of service level. Accepts values 0 to 2. PLEASE NOTE qos=2 is not actually supported.
@@ -199,7 +201,7 @@ class MQTTClient:
 
         :param clean_session: Starts new session on true, resumes past session if false.
         :type clean_session: bool
-        :param socket_timeout: -1 = default socket timeout, None - no timeout(blocking), positive number - number of seconds to wait
+        :param socket_timeout: -1 = default socket timeout, None - socket blocking, positive number - seconds to wait
         :type socket_timeout: int
         :return: Existing persistent session of the client from previous interactions.
         :rtype: bool
@@ -271,7 +273,7 @@ class MQTTClient:
         if not (resp[0] == 0x20 and resp[1] == 0x02):  # control packet type, Remaining Length == 2
             raise MQTTException(29)
         if resp[3] != 0:
-            if resp[3] >= 1 and resp[3] <= 5:
+            if 1 <= resp[3] <= 5:
                 raise MQTTException(20 + resp[3])
             else:
                 raise MQTTException(20, resp[3])
@@ -281,7 +283,7 @@ class MQTTClient:
     def disconnect(self, socket_timeout=-1):
         """
         Disconnects from the MQTT server.
-        :param socket_timeout: -1 = default socket timeout, None - no timeout(blocking), positive number - number of seconds to wait
+        :param socket_timeout: -1 = default socket timeout, None - socket blocking, positive number - seconds to wait
         :type socket_timeout: int
         :return: None
         """
@@ -292,7 +294,7 @@ class MQTTClient:
     def ping(self, socket_timeout=-1):
         """
         Pings the MQTT server.
-        :param socket_timeout: -1 = default socket timeout, None - no timeout(blocking), positive number - number of seconds to wait
+        :param socket_timeout: -1 = default socket timeout, None - socket blocking, positive number - seconds to wait
         :type socket_timeout: int
         :return: None
         """
@@ -305,16 +307,16 @@ class MQTTClient:
         Publishes a message to a specified topic.
 
         :param topic: Topic you wish to publish to. Takes the form "path/to/topic"
-        :type topic: str
+        :type topic: byte
         :param msg: Message to publish to topic.
-        :type msg: str
+        :type msg: byte
         :param retain: Have the MQTT broker retain the message.
         :type retain: bool
         :param qos: Sets quality of service level. Accepts values 0 to 2. PLEASE NOTE qos=2 is not actually supported.
         :type qos: int
         :param dup: Duplicate delivery of a PUBLISH Control Packet
         :type dup: bool
-        :param socket_timeout: -1 = default socket timeout, None - no timeout(blocking), positive number - number of seconds to wait
+        :param socket_timeout: -1 = default socket timeout, None - socket blocking, positive number - seconds to wait
         :type socket_timeout: int
         :return: None
         """
@@ -341,10 +343,11 @@ class MQTTClient:
         Subscribes to a given topic.
 
         :param topic: Topic you wish to publish to. Takes the form "path/to/topic"
-        :type topic: str
-        :param qos: Sets quality of service level. Accepts values 0 to 1. This gives the maximum QoS level at which the Server can send Application Messages to the Client.
+        :type topic: byte
+        :param qos: Sets quality of service level. Accepts values 0 to 1. This gives the maximum QoS level at which
+                    the Server can send Application Messages to the Client.
         :type qos: int
-        :param socket_timeout: -1 = default socket timeout, None - no timeout(blocking), positive number - number of seconds to wait
+        :param socket_timeout: -1 = default socket timeout, None - socket blocking, positive number - seconds to wait
         :type socket_timeout: int
         :return: None
         """
@@ -378,6 +381,8 @@ class MQTTClient:
         - messages from subscribed topics that are processed by functions set by the set_callback method.
         - reply from the server that he received a QoS=1 message or subscribed to a topic
 
+        :param socket_timeout: -1 = default socket timeout, None - socket blocking, positive number - seconds to wait
+        :type socket_timeout: int
         :return: None
         """
         res = self._read(1)  # Throws OSError on WiFi fail
@@ -388,7 +393,8 @@ class MQTTClient:
             return None
 
         if res == b"\xd0":  # PINGRESP
-            sz = self._read(1)[0]
+            if self._read(1)[0] != 0:
+                MQTTException(-1)
             self.last_cpacket = ticks_ms()
             return
 
@@ -428,7 +434,7 @@ class MQTTClient:
 
         self._message_timeout()
 
-        if op & 0xf0 != 0x30: # 3.3 PUBLISH – Publish message
+        if op & 0xf0 != 0x30:  # 3.3 PUBLISH – Publish message
             return op
         sz = self._recv_len()
         topic_len = int.from_bytes(self._read(2), 'big')

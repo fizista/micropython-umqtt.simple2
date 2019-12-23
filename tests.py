@@ -109,7 +109,7 @@ class TestMQTT:
         client = self.clients[clientid_postfix]
         for i in range(timeout):
             client.check_msg()
-            if clientid_postfix in self.subsctiption_out and self.subsctiption_out[clientid_postfix] != None:
+            if clientid_postfix in self.subsctiption_out and self.subsctiption_out[clientid_postfix] is not None:
                 o = self.subsctiption_out[clientid_postfix]
                 self.subsctiption_out[clientid_postfix] = None
                 return o
@@ -122,7 +122,7 @@ class TestMQTT:
         for i in range(timeout + 1):
             utime.sleep(1)
             client.check_msg()
-            if clientid_postfix in self.status_out and self.status_out[clientid_postfix] != None:
+            if clientid_postfix in self.status_out and self.status_out[clientid_postfix] is not None:
                 o = self.status_out[clientid_postfix]
                 self.status_out[clientid_postfix] = None
                 if pid:
@@ -246,7 +246,9 @@ class TestMQTT:
     def test_subscribe_long_topic(self, topic):
         self.client.connect()
         topic = topic + '3' * (500 - len(topic))
-        self.client.subscribe(topic + '/#')
+        pid = self.client.subscribe(topic + '/#')
+        out_pid, status = self.get_status_out(pid=pid)
+        assert status == 1
         msg_in = 'abc123'
         self.client.publish(topic, msg_in, qos=1)
         msg_out = self.get_subscription_out()[1]
