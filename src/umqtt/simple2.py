@@ -262,7 +262,8 @@ class MQTTClient:
             if self.pswd is not None:
                 self._send_str(self.pswd)
         resp = self._read(4)
-        assert resp[0] == 0x20 and resp[1] == 0x02  # control packet type, Remaining Length == 2
+        if not (resp[0] == 0x20 and resp[1] == 0x02):  # control packet type, Remaining Length == 2
+            raise MQTTException(29)
         if resp[3] != 0:
             if resp[3] >= 1 and resp[3] <= 5:
                 raise MQTTException(20 + resp[3])
