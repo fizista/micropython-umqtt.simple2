@@ -4,6 +4,7 @@ EREADLEN = 2    # Wrong length of read data
 EWRITELEN = 3   # Wrong length of read data
 ESTRTOLONG = 4  # String too long !!!!
 ERESPONSE = 6   # Wrong response
+EKEEPALIVE = 7  # Connection keep time has been exceeded (umqtt.robust2)
 
 ECONUNKNOWN = 20     # Connection refused, unknown error
 ECONPROTOCOL = 21    # Connection refused, unacteptable protocol version
