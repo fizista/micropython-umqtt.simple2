@@ -1,3 +1,9 @@
+.. role:: bash(code)
+   :language: bash
+
+.. role:: python(code)
+   :language: python
+
 umqtt.simple2
 =============
 
@@ -16,9 +22,42 @@ Differences between umqtt.simple and umqtt.simple2
 * When subscribing to a channel, there is no problem with "suspending"
   the script while waiting for confirmation of the subscription by the server.
 * Information about receiving or failing to receive a message from QoS=1 or subscription
-  can only be received by registering a callback using the `set_callback_status()` method.
+  can only be received by registering a callback using the :python:`set_callback_status()` method.
 * Currently, the module informs about errors in more detailed way. See the umqtt/errno.py file.
-* The application should also not hang up when using `check_msg()`
+* The application should also not hang up when using :python:`check_msg()`
+* The code compiled for MPY files, is about 30% larger than the original one.
+  So this library has gained more functionality (maybe reliability),
+  but this was done at the expense of the amount of code.
+
+How and where to install this code?
+-----------------------------------
+You can install using the upip:
+
+.. code-block:: python
+
+    import upip
+    upip.install("micropython-umqtt.simple2")
+
+or
+
+.. code-block:: bash
+
+    micropython -m upip install -p modules micropython-umqtt.simple2
+
+
+You can also clone this repository, and install it manually:
+
+.. code-block:: bash
+
+    git clone https://github.com/fizista/micropython-umqtt.simple2.git
+
+Manual installation gives you more possibilities:
+
+* You can compile this library into MPY files using the :bash:`compile.sh` script.
+* You can remove comments from the code with the command: :bash:`python setup.py minify`
+* You can of course copy the code as it is, if you don't mind.
+
+**Please note that the PyPi repositories contain optimized code (no comments).**
 
 Design requirements
 -------------------
@@ -54,7 +93,7 @@ Based on the requirements above, there are following API traits:
   the most efficient. However, if in subscription callback, new
   messages of QoS>0 are published, this may lead to deep, or
   infinite recursion (the latter means an application will terminate
-  with ``RuntimeException``).
+  with :python:`RuntimeException`).
 
 API reference
 -------------
@@ -91,8 +130,8 @@ publish messages with QoS==0, never subscribe to them.
 If you are using a subscription and/or sending QoS>0 messages, you must run one of these
 commands ( ``wait_msg()`` or ``check_msg()`` ).
 
-For more detailed information about API please see the source code
-(which is quite short and easy to review) and provided examples.
+**For more detailed information about API please see the source code
+(which is quite short and easy to review) and provided examples.**
 
 
 Supported MQTT features
@@ -104,6 +143,9 @@ session" parameter is supported for connect as of now.
 
 Simple library testing
 ----------------------
+The current tests are not only to test the code, but also to check it in a real environment. Therefore, a good idea,
+before we use this library in our own project, is to test its operation with the MQTT broker.
+
 To test if the library works well with your device and MQTT broker,
 use the TestMQTT class from the `tests.py` module.
 
