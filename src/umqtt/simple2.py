@@ -63,8 +63,8 @@ class MQTTClient:
         self.lw_retain = False
         self.rcv_pids = {}  # PUBACK and SUBACK pids awaiting ACK response
 
-        self.last_rx = ticks_ms()  # Time of last communication from broker
-        self.last_rcommand = ticks_ms()  # Time of last OK read command
+        self.last_ping = ticks_ms() # Time of the last PING sent
+        self.last_cpacket = ticks_ms()  # Time of last Control Packet
 
         self.socket_timeout = socket_timeout
         self.message_timeout = message_timeout
@@ -84,7 +84,6 @@ class MQTTClient:
         if msg is not None:
             if len(msg) != n:
                 raise MQTTException(2)
-            self.last_rx = ticks_ms()
         return msg
 
     def _write(self, bytes_wr, length=-1):
@@ -270,6 +269,7 @@ class MQTTClient:
                 raise MQTTException(20 + resp[3])
             else:
                 raise MQTTException(20, resp[3])
+        self.last_cpacket = ticks_ms()
         return resp[2] & 1  # Is existing persistent session of the client from previous interactions.
 
     def disconnect(self, socket_timeout=-1):
@@ -290,8 +290,9 @@ class MQTTClient:
         :type socket_timeout: int
         :return: None
         """
-        self.sock.settimeout(self.socket_timeout if socket_timeout < 0 else socket_timeout)
+        self.sock.settimeout(self.socket_timeout if socket_timeout < 0 else socket_timeout) # If self.sock else exception no connection
         self._write(b"\xc0\0")
+        self.last_ping = ticks_ms()
 
     def publish(self, topic, msg, retain=False, qos=0, dup=False, socket_timeout=-1):
         """
@@ -382,7 +383,7 @@ class MQTTClient:
 
         if res == b"\xd0":  # PINGRESP
             sz = self._read(1)[0]
-            self.last_rcommand = ticks_ms()
+            self.last_cpacket = ticks_ms()
             return
 
         op = res[0]
@@ -393,7 +394,7 @@ class MQTTClient:
                 raise MQTTException(-1)
             rcv_pid = int.from_bytes(self._read(2), 'big')
             if rcv_pid in self.rcv_pids:
-                self.last_rcommand = ticks_ms()
+                self.last_cpacket = ticks_ms()
                 self.rcv_pids.pop(rcv_pid)
                 self.cbstat(rcv_pid, 1)
             else:
@@ -413,7 +414,7 @@ class MQTTClient:
                 raise MQTTException(40, resp)
             pid = resp[2] | (resp[1] << 8)
             if pid in self.rcv_pids:
-                self.last_rcommand = ticks_ms()
+                self.last_cpacket = ticks_ms()
                 self.rcv_pids.pop(pid)
                 self.cbstat(pid, 1)
             else:
@@ -434,7 +435,7 @@ class MQTTClient:
         retained = op & 0x01
         dup = op & 0x08
         self.cb(topic, msg, bool(retained), bool(dup))
-        self.last_rcommand = ticks_ms()
+        self.last_cpacket = ticks_ms()
         if op & 6 == 2:  # QoS==1
             self._write(b"\x40\x02")  # Send PUBACK
             self._write(pid.to_bytes(2, 'big'))
