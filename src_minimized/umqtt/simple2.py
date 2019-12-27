@@ -78,7 +78,9 @@ class MQTTClient:
 		for (B,D) in A.rcv_pids.items():
 			if ticks_diff(D,C)<=0:A.rcv_pids.pop(B);A.cbstat(B,0)
 	def wait_msg(A,socket_timeout=None):
-		G=A._read(1);A.sock.settimeout(socket_timeout)
+		if A.sock:G=A._read(1)
+		else:raise MQTTException(28)
+		A.sock.settimeout(socket_timeout)
 		if G is None:A._message_timeout();return None
 		if G==b'\xd0':
 			if A._read(1)[0]!=0:MQTTException(-1)
@@ -106,4 +108,4 @@ class MQTTClient:
 		if B&6==2:A._write(b'@\x02');A._write(E.to_bytes(2,'big'))
 		elif B&6==4:raise NotImplementedError()
 		elif B&6==6:raise MQTTException(-1)
-	def check_msg(A):A.sock.setblocking(False);return A.wait_msg(socket_timeout=A.socket_timeout)
+	def check_msg(A):A._sock_timeout(0);return A.wait_msg(socket_timeout=A.socket_timeout)
