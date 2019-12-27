@@ -385,7 +385,10 @@ class MQTTClient:
         :type socket_timeout: int
         :return: None
         """
-        res = self._read(1)  # Throws OSError on WiFi fail
+        if self.sock:
+            res = self._read(1)  # Throws OSError on WiFi fail
+        else:
+            raise MQTTException(28)
         # Real mode without blocking
         self.sock.settimeout(socket_timeout)
         if res is None:
@@ -464,5 +467,5 @@ class MQTTClient:
 
         :return: None
         """
-        self.sock.setblocking(False)
+        self._sock_timeout(0)
         return self.wait_msg(socket_timeout=self.socket_timeout)
