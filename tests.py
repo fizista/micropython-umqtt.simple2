@@ -235,6 +235,10 @@ class TestMQTT:
         self.client.publish(topic, msg_in, qos=1)
         msg_out = self.get_subscription_out()[1]
         assert msg_in == msg_out.decode('ascii')
+        msg_in = ''
+        self.client.publish(topic, msg_in, qos=1)
+        msg_out = self.get_subscription_out()[1]
+        assert msg_in == msg_out.decode('ascii')
         self.client.disconnect()
 
     def test_subscribe_qos_1(self, topic):
