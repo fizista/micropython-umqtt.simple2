@@ -103,8 +103,8 @@ class MQTTClient:
 		A._message_timeout()
 		if B&240!=48:return B
 		D=A._recv_len();H=int.from_bytes(A._read(2),'big');I=A._read(H);D-=H+2
-		if B&6:E=int.from_bytes(A.sock.read(2),'big');D-=2
-		J=A._read(D);K=B&1;L=B&8;A.cb(I,J,bool(K),bool(L));A.last_cpacket=ticks_ms()
+		if B&6:E=int.from_bytes(A._read(2),'big');D-=2
+		J=A._read(D)if D else b'';K=B&1;L=B&8;A.cb(I,J,bool(K),bool(L));A.last_cpacket=ticks_ms()
 		if B&6==2:A._write(b'@\x02');A._write(E.to_bytes(2,'big'))
 		elif B&6==4:raise NotImplementedError()
 		elif B&6==6:raise MQTTException(-1)
