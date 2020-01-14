@@ -446,7 +446,7 @@ class MQTTClient:
         if op & 6:  # QoS level > 0
             pid = int.from_bytes(self.sock.read(2), 'big')
             sz -= 2
-        msg = self._read(sz) if sz else None
+        msg = self._read(sz) if sz else b''
         retained = op & 0x01
         dup = op & 0x08
         self.cb(topic, msg, bool(retained), bool(dup))
