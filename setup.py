@@ -154,7 +154,7 @@ class SDistCommand(sdist_upip.sdist):
 
 setuptools.setup(
     name='micropython-umqtt.simple2',
-    version='2.0.0',
+    version='2.0.1',
     description='MQTT client for MicroPython.',
     long_description=read('README.rst'),
     long_description_content_type="text/x-rst",
