@@ -290,6 +290,7 @@ class MQTTClient:
         self._sock_timeout(socket_timeout)
         self._write(b"\xe0\0")
         self.sock.close()
+        self.sock = None
 
     def ping(self, socket_timeout=-1):
         """
