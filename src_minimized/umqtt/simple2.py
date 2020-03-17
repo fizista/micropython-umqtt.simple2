@@ -63,7 +63,7 @@ class MQTTClient:
 			if 1<=C[3]<=5:raise MQTTException(20+C[3])
 			else:raise MQTTException(20,C[3])
 		A.last_cpacket=ticks_ms();return C[2]&1
-	def disconnect(A,socket_timeout=-1):A._sock_timeout(socket_timeout);A._write(b'\xe0\x00');A.sock.close()
+	def disconnect(A,socket_timeout=-1):A._sock_timeout(socket_timeout);A._write(b'\xe0\x00');A.sock.close();A.sock=None
 	def ping(A,socket_timeout=-1):A._sock_timeout(socket_timeout);A._write(b'\xc0\x00');A.last_ping=ticks_ms()
 	def publish(A,topic,msg,retain=False,qos=0,dup=False,socket_timeout=-1):
 		E=topic;B=qos;A._sock_timeout(socket_timeout);assert B in(0,1);C=bytearray(b'0\x00\x00\x00\x00');C[0]|=B<<1|retain|int(dup)<<3;F=2+len(E)+len(msg)
