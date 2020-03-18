@@ -13,13 +13,16 @@ class MQTTClient:
 		if not getattr(A,'cbstat',None):A.cbstat=lambda p,s:None
 		A.user=user;A.pswd=password;A.keepalive=keepalive;A.lw_topic=None;A.lw_msg=None;A.lw_qos=0;A.lw_retain=False;A.rcv_pids={};A.last_ping=ticks_ms();A.last_cpacket=ticks_ms();A.socket_timeout=socket_timeout;A.message_timeout=message_timeout
 	def _read(B,n):
-		A=B.sock.read(n)
+		try:A=B.sock.read(n)
+		except AttributeError:raise MQTTException(8)
 		if A==b'':raise MQTTException(1)
 		if A is not None:
 			if len(A)!=n:raise MQTTException(2)
 		return A
 	def _write(D,bytes_wr,length=-1):
-		C=bytes_wr;A=length;B=D.sock.write(C,A)
+		C=bytes_wr;A=length
+		try:B=D.sock.write(C,A)
+		except AttributeError:raise MQTTException(8)
 		if A<0:
 			if B!=len(C):raise MQTTException(3)
 		elif B!=A:raise MQTTException(3)
