@@ -80,7 +80,10 @@ class MQTTClient:
         :return:
         """
         # in non-blocking mode, may not download enough data
-        msg = self.sock.read(n)
+        try:
+            msg = self.sock.read(n)
+        except AttributeError:
+            raise MQTTException(8)
         if msg == b'':  # Connection closed by host (?)
             raise MQTTException(1)
         if msg is not None:
@@ -99,7 +102,10 @@ class MQTTClient:
         :return:
         """
         # In non-blocking socket mode, the entire block of data may not be sent.
-        out = self.sock.write(bytes_wr, length)
+        try:
+            out = self.sock.write(bytes_wr, length)
+        except AttributeError:
+            raise MQTTException(8)
         if length < 0:
             if out != len(bytes_wr):
                 raise MQTTException(3)
