@@ -7,7 +7,7 @@
 umqtt.simple2
 =============
 
-umqtt.simple2 is a MQTT client for MicroPython. (Note that it uses some
+umqtt.simple2_ is a MQTT client for MicroPython. (Note that it uses some
 MicroPython shortcuts and doesn't work with CPython).
 
 Support MQTT Version 3.1.1 only.
@@ -18,8 +18,8 @@ work with other ports, but the library was not tested under other ports.
 MQTT client with more features
 ------------------------------
 
-There's a separate `umqtt.robust2` ( https://github.com/fizista/micropython-umqtt.robust2 ) module which builds
-on `umqtt.simple2` adds the ability to reconnect.
+There's a separate umqtt.robust2_  module which builds
+on umqtt.simple2_ adds the ability to reconnect.
 It is able to send unsent messages itself. And many more...
 
 Differences between umqtt.simple and umqtt.simple2
@@ -159,7 +159,7 @@ use the TestMQTT class from the `tests.py` module.
 If you don't have your own MQTT broker yet, you can use the free MQTT test broker (test.mosquitto.org).
 
 There is also a sample file `main.py`(`example_test_main.py`),
-In this file we add only network configuration. Upload this file to your device with `umqtt.simple2`
+In this file we add only network configuration. Upload this file to your device with umqtt.simple2_
 library and `tests.py` module. Then reset the device and watch the results in the console.
 
 Different problems
@@ -175,3 +175,6 @@ Additional resources
 * https://flespi.com/tools/mqtt-board - An open-source MQTT client tool for easy MQTT pub/sub, testing, and demonstration.
 * https://github.com/wialon/gmqtt - Python MQTT client implementation(not for the micropython)
 * https://www.hivemq.com/mqtt-essentials/ - Blog with explanation of MQTT specifications
+
+.. _umqtt.simple2: https://github.com/fizista/micropython-umqtt.simple2
+.. _umqtt.robust2: https://github.com/fizista/micropython-umqtt.robust2
