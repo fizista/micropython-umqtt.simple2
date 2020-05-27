@@ -30,7 +30,7 @@ try:
                     data = connection.recv(16)
                     to_err('├ received "%s"' % data)
                 elif operation in ('w', 'write'):
-                    to_err('├ send data:')
+                    to_err('├ send data:', end='')
                     data = input().encode('utf8')
                     connection.sendall(data)
                 else:
