@@ -83,14 +83,16 @@ class MQTTClient:
         """
         # in non-blocking mode, may not download enough data
         try:
-            msg = self.sock.read(n)
+            msg = b''
+            for i in range(n):
+                self._sock_timeout(self.poller_r, self.socket_timeout)
+                msg += self.sock.read(1)
         except AttributeError:
             raise MQTTException(8)
         if msg == b'':  # Connection closed by host (?)
             raise MQTTException(1)
-        if msg is not None:
-            if len(msg) != n:
-                raise MQTTException(2)
+        if len(msg) != n:
+            raise MQTTException(2)
         return msg
 
     def _write(self, bytes_wr, length=-1):
@@ -105,6 +107,7 @@ class MQTTClient:
         """
         # In non-blocking socket mode, the entire block of data may not be sent.
         try:
+            self._sock_timeout(self.poller_w, self.socket_timeout)
             out = self.sock.write(bytes_wr, length)
         except AttributeError:
             raise MQTTException(8)
@@ -151,12 +154,12 @@ class MQTTClient:
         buf[offset] = value
         return offset + 1
 
-    def _sock_timeout(self, socket_timeout=-1):
+    def _sock_timeout(self, poller, socket_timeout=-1):
         if self.sock:
             timeout = self.socket_timeout if socket_timeout < 0 else socket_timeout
             if timeout is None:
                 timeout = -1
-            res = self.poller.poll(int(timeout * 1000))
+            res = poller.poll(int(timeout * 1000))
             if not res:
                 raise MQTTException(30)
         else:
@@ -220,11 +223,12 @@ class MQTTClient:
         :rtype: bool
         """
         self.sock = socket.socket()
-        self.poller = uselect.poll()
-        self.poller.register(self.sock)
+        self.poller_r = uselect.poll()
+        self.poller_r.register(self.sock, uselect.POLLIN)
+        self.poller_w = uselect.poll()
+        self.poller_w.register(self.sock, uselect.POLLOUT)
         addr = socket.getaddrinfo(self.server, self.port)[0][-1]
         self.sock.connect(addr)
-        self._sock_timeout(socket_timeout)
         if self.ssl:
             import ussl
             self.sock = ussl.wrap_socket(self.sock, **self.ssl_params)
@@ -303,9 +307,9 @@ class MQTTClient:
         :type socket_timeout: int
         :return: None
         """
-        self._sock_timeout(socket_timeout)
         self._write(b"\xe0\0")
-        self.poller.unregister(self.sock)
+        self.poller_r.unregister(self.sock)
+        self.poller_w.unregister(self.sock)
         self.sock.close()
         self.sock = None
         self.poller = None
@@ -317,7 +321,6 @@ class MQTTClient:
         :type socket_timeout: int
         :return: None
         """
-        self._sock_timeout(socket_timeout)  # If self.sock else exception no connection
         self._write(b"\xc0\0")
         self.last_ping = ticks_ms()
 
@@ -339,7 +342,6 @@ class MQTTClient:
         :type socket_timeout: int
         :return: None
         """
-        self._sock_timeout(socket_timeout)
         assert qos in (0, 1)
         pkt = bytearray(b"\x30\0\0\0\0")
         pkt[0] |= qos << 1 | retain | int(dup) << 3
@@ -371,7 +373,6 @@ class MQTTClient:
         :return: None
         """
         assert qos in (0, 1)
-        self._sock_timeout(socket_timeout)
         assert self.cb is not None, "Subscribe callback is not set"
         pkt = bytearray(b"\x82\0\0\0\0\0\0")
         pid = next(self.newpid)
@@ -493,5 +494,4 @@ class MQTTClient:
 
         :return: None
         """
-        self._sock_timeout(0.001)
         return self.wait_msg(socket_timeout=self.socket_timeout)
