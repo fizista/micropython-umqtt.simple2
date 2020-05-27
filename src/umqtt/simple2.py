@@ -1,4 +1,5 @@
 import usocket as socket
+import uselect
 from utime import ticks_add, ticks_ms, ticks_diff
 
 
@@ -47,6 +48,7 @@ class MQTTClient:
             port = 8883 if ssl else 1883
         self.client_id = client_id
         self.sock = None
+        self.poller = None
         self.server = server
         self.port = port
         self.ssl = ssl
@@ -151,7 +153,12 @@ class MQTTClient:
 
     def _sock_timeout(self, socket_timeout=-1):
         if self.sock:
-            self.sock.settimeout(self.socket_timeout if socket_timeout < 0 else socket_timeout)
+            timeout = self.socket_timeout if socket_timeout < 0 else socket_timeout
+            if timeout is None:
+                timeout = -1
+            res = self.poller.poll(int(timeout * 1000))
+            if not res:
+                raise MQTTException(30)
         else:
             raise MQTTException(28)
 
@@ -213,12 +220,15 @@ class MQTTClient:
         :rtype: bool
         """
         self.sock = socket.socket()
+        self.poller = uselect.poll()
+        self.poller.register(self.sock)
         addr = socket.getaddrinfo(self.server, self.port)[0][-1]
         self.sock.connect(addr)
         self._sock_timeout(socket_timeout)
         if self.ssl:
             import ussl
             self.sock = ussl.wrap_socket(self.sock, **self.ssl_params)
+
         # Byte nr - desc
         # 1 - \x10 0001 - Connect Command, 0000 - Reserved
         # 2 - Remaining Length
@@ -295,8 +305,10 @@ class MQTTClient:
         """
         self._sock_timeout(socket_timeout)
         self._write(b"\xe0\0")
+        self.poller.unregister(self.sock)
         self.sock.close()
         self.sock = None
+        self.poller = None
 
     def ping(self, socket_timeout=-1):
         """
@@ -393,14 +405,21 @@ class MQTTClient:
         :return: None
         """
         if self.sock:
-            res = self._read(1)  # Throws OSError on WiFi fail
+            try:
+                res = self._read(1)  # Throws OSError on WiFi fail
+                if res is None:
+                    self._message_timeout()
+                    return None
+            except OSError as e:
+                if e.args[0] == 110:  # Occurs when no incomming data
+                    self._message_timeout()
+                    return None
+                else:
+                    raise e
         else:
             raise MQTTException(28)
         # Real mode without blocking
         self.sock.settimeout(socket_timeout)
-        if res is None:
-            self._message_timeout()
-            return None
 
         if res == b"\xd0":  # PINGRESP
             if self._read(1)[0] != 0:
@@ -474,5 +493,5 @@ class MQTTClient:
 
         :return: None
         """
-        self._sock_timeout(0)
+        self._sock_timeout(0.001)
         return self.wait_msg(socket_timeout=self.socket_timeout)
