@@ -154,12 +154,9 @@ class MQTTClient:
         buf[offset] = value
         return offset + 1
 
-    def _sock_timeout(self, poller, socket_timeout=-1):
+    def _sock_timeout(self, poller, socket_timeout):
         if self.sock:
-            timeout = self.socket_timeout if socket_timeout < 0 else socket_timeout
-            if timeout is None:
-                timeout = -1
-            res = poller.poll(int(timeout * 1000))
+            res = poller.poll(-1 if socket_timeout is None else int(socket_timeout * 1000))
             if not res:
                 raise MQTTException(30)
         else:
@@ -211,14 +208,12 @@ class MQTTClient:
         self.lw_qos = qos
         self.lw_retain = retain
 
-    def connect(self, clean_session=True, socket_timeout=-1):
+    def connect(self, clean_session=True):
         """
         Establishes connection with the MQTT server.
 
         :param clean_session: Starts new session on true, resumes past session if false.
         :type clean_session: bool
-        :param socket_timeout: -1 = default socket timeout, None - socket blocking, positive number - seconds to wait
-        :type socket_timeout: int
         :return: Existing persistent session of the client from previous interactions.
         :rtype: bool
         """
@@ -300,11 +295,9 @@ class MQTTClient:
         self.last_cpacket = ticks_ms()
         return resp[2] & 1  # Is existing persistent session of the client from previous interactions.
 
-    def disconnect(self, socket_timeout=-1):
+    def disconnect(self):
         """
         Disconnects from the MQTT server.
-        :param socket_timeout: -1 = default socket timeout, None - socket blocking, positive number - seconds to wait
-        :type socket_timeout: int
         :return: None
         """
         self._write(b"\xe0\0")
@@ -314,17 +307,15 @@ class MQTTClient:
         self.sock = None
         self.poller = None
 
-    def ping(self, socket_timeout=-1):
+    def ping(self):
         """
         Pings the MQTT server.
-        :param socket_timeout: -1 = default socket timeout, None - socket blocking, positive number - seconds to wait
-        :type socket_timeout: int
         :return: None
         """
         self._write(b"\xc0\0")
         self.last_ping = ticks_ms()
 
-    def publish(self, topic, msg, retain=False, qos=0, dup=False, socket_timeout=-1):
+    def publish(self, topic, msg, retain=False, qos=0, dup=False):
         """
         Publishes a message to a specified topic.
 
@@ -338,8 +329,6 @@ class MQTTClient:
         :type qos: int
         :param dup: Duplicate delivery of a PUBLISH Control Packet
         :type dup: bool
-        :param socket_timeout: -1 = default socket timeout, None - socket blocking, positive number - seconds to wait
-        :type socket_timeout: int
         :return: None
         """
         assert qos in (0, 1)
@@ -359,7 +348,7 @@ class MQTTClient:
             self.rcv_pids[pid] = ticks_add(ticks_ms(), self.message_timeout * 1000)
             return pid
 
-    def subscribe(self, topic, qos=0, socket_timeout=-1):
+    def subscribe(self, topic, qos=0):
         """
         Subscribes to a given topic.
 
@@ -368,8 +357,6 @@ class MQTTClient:
         :param qos: Sets quality of service level. Accepts values 0 to 1. This gives the maximum QoS level at which
                     the Server can send Application Messages to the Client.
         :type qos: int
-        :param socket_timeout: -1 = default socket timeout, None - socket blocking, positive number - seconds to wait
-        :type socket_timeout: int
         :return: None
         """
         assert qos in (0, 1)
@@ -392,23 +379,28 @@ class MQTTClient:
                 self.rcv_pids.pop(pid)
                 self.cbstat(pid, 0)
 
-    def wait_msg(self, socket_timeout=None):
+    def check_msg(self):
         """
-        This method waits for a message from the server.
+        Checks whether a pending message from server is available.
+
+        If socket_timeout=None, this is the socket lock mode. That is, it waits until the data can be read.
+
+        Otherwise it will return None, after the time set in the socket_timeout.
 
         It processes such messages:
         - response to PING
         - messages from subscribed topics that are processed by functions set by the set_callback method.
         - reply from the server that he received a QoS=1 message or subscribed to a topic
 
-        :param socket_timeout: -1 = default socket timeout, None - socket blocking, positive number - seconds to wait
-        :type socket_timeout: int
         :return: None
         """
         if self.sock:
+            if not self.poller_r.poll(-1 if self.socket_timeout is None else 1):
+                self._message_timeout()
+                return None
             try:
                 res = self._read(1)  # Throws OSError on WiFi fail
-                if res is None:
+                if not res:
                     self._message_timeout()
                     return None
             except OSError as e:
@@ -419,8 +411,6 @@ class MQTTClient:
                     raise e
         else:
             raise MQTTException(28)
-        # Real mode without blocking
-        self.sock.settimeout(socket_timeout)
 
         if res == b"\xd0":  # PINGRESP
             if self._read(1)[0] != 0:
@@ -486,12 +476,16 @@ class MQTTClient:
         elif op & 6 == 6:  # 3.3.1.2 QoS - Reserved – must not be used
             raise MQTTException(-1)
 
-    def check_msg(self):
+    def wait_msg(self):
         """
-        Checks whether a pending message from server is available.
-        If not, returns immediately with None. Otherwise, does
-        the same processing as wait_msg.
+        This method waits for a message from the server.
 
-        :return: None
+        Compatibility with previous versions.
+
+        It is recommended not to use this method. Set socket_time=None instead.
         """
-        return self.wait_msg(socket_timeout=self.socket_timeout)
+        st_old = self.socket_timeout
+        self.socket_timeout = None
+        out = self.check_msg()
+        self.socket_timeout = st_old
+        return out
