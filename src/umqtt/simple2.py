@@ -38,11 +38,11 @@ class MQTTClient:
         :param ssl_params: Required SSL parameters.
         :type ssl_params: dict
         :param socket_timeout: The time in seconds after which the socket interrupts the connection to the server when
-                               no data exchange takes place.
-        :type ssl_params: int
+                               no data exchange takes place. None - socket blocking, positive number - seconds to wait.
+        :type socket_timeout: int
         :param message_timeout: The time in seconds after which the library recognizes that a message with QoS=1
                                 or topic subscription has not been received by the server.
-        :type ssl_params: dict
+        :type message_timeout: dict
         """
         if port == 0:
             port = 8883 if ssl else 1883
