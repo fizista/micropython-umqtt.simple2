@@ -158,6 +158,7 @@ class TestMQTT:
             if not self.run_test(test_name):
                 test_fails.append(test_name)
         if test_fails:
+            print('\nTests ok: %s\n' % ', '.join(t for t in tests if t not in test_fails))
             print('\nTests fails: %s\n' % ', '.join(test_fails))
         else:
             print('All the tests were finished successfully!')
