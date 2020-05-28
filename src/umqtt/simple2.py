@@ -16,7 +16,7 @@ def pid_gen(pid=0):
 class MQTTClient:
 
     def __init__(self, client_id, server, port=0, user=None, password=None, keepalive=0,
-                 ssl=False, ssl_params=None, socket_timeout=1, message_timeout=5):
+                 ssl=False, ssl_params=None, socket_timeout=5, message_timeout=10):
         """
         Default constructor, initializes MQTTClient object.
 
