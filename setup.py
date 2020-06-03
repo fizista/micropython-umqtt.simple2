@@ -39,9 +39,10 @@ class PythonMinifier(setuptools.Command):
 
     def finalize_options(self):
         """Post-process options."""
-        if self.minified_dir == str(MINIFIED_DIR):
-            if not os.path.exists(str(MINIFIED_DIR)):
-                os.mkdir(str(MINIFIED_DIR))
+        if self.minified_dir == str(MINIFIED_DIR) and not os.path.exists(
+            str(MINIFIED_DIR)
+        ):
+            os.mkdir(str(MINIFIED_DIR))
 
         if not os.path.isdir(self.minified_dir):
             raise Exception("Directory does not exist: {0}".format(self.minified_dir))

@@ -84,7 +84,7 @@ class MQTTClient:
         # in non-blocking mode, may not download enough data
         try:
             msg = b''
-            for i in range(n):
+            for _ in range(n):
                 self._sock_timeout(self.poller_r, self.socket_timeout)
                 msg += self.sock.read(1)
         except AttributeError:
@@ -285,7 +285,7 @@ class MQTTClient:
             if self.pswd is not None:
                 self._send_str(self.pswd)
         resp = self._read(4)
-        if not (resp[0] == 0x20 and resp[1] == 0x02):  # control packet type, Remaining Length == 2
+        if resp[0] != 0x20 or resp[1] != 0x02:    # control packet type, Remaining Length == 2
             raise MQTTException(29)
         if resp[3] != 0:
             if 1 <= resp[3] <= 5:

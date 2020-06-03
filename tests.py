@@ -77,7 +77,7 @@ class TestMQTT:
     def init_mqtt_client(self, clientid_postfix='_1'):
         args = list(self.mqtt_client_args[0][:])
         kwargs = self.mqtt_client_args[1].copy()
-        if len(args) > 0:
+        if args:
             args[0] += clientid_postfix
         if 'client_id' in kwargs:
             kwargs['client_id'] += clientid_postfix
@@ -107,7 +107,7 @@ class TestMQTT:
     def get_subscription_out(self, timeout=5, clientid_postfix='_1'):
         print('WAIT SUB: timeout=%d' % (timeout,))
         client = self.clients[clientid_postfix]
-        for i in range(timeout):
+        for _ in range(timeout):
             client.check_msg()
             if clientid_postfix in self.subsctiption_out and self.subsctiption_out[clientid_postfix] is not None:
                 o = self.subsctiption_out[clientid_postfix]
@@ -119,15 +119,14 @@ class TestMQTT:
     def get_status_out(self, timeout=5, pid=None, clientid_postfix='_1'):
         print('WAIT STAT: timeout=%d pid=%s' % (timeout, pid))
         client = self.clients[clientid_postfix]
-        for i in range(timeout + 1):
+        for _ in range(timeout + 1):
             utime.sleep(1)
             client.check_msg()
             if clientid_postfix in self.status_out and self.status_out[clientid_postfix] is not None:
                 o = self.status_out[clientid_postfix]
                 self.status_out[clientid_postfix] = None
-                if pid:
-                    if pid != o[0]:
-                        continue
+                if pid and pid != o[0]:
+                    continue
                 return o
         raise Exception('timeout')
 

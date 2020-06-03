@@ -17,7 +17,7 @@ class TestMQTT(tests_mod.TestMQTT):
         # If it doesn't work with your port, please rewrite this part.
         wlan = network.WLAN(network.STA_IF)
         wlan.disconnect()
-        for i in range(500):
+        for _ in range(500):
             utime.sleep_ms(100)
             if not wlan.isconnected():
                 return
@@ -28,7 +28,7 @@ class TestMQTT(tests_mod.TestMQTT):
         # If it doesn't work with your port, please rewrite this part.
         wlan = network.WLAN(network.STA_IF)
         wlan.connect()
-        for i in range(500):
+        for _ in range(500):
             utime.sleep_ms(100)
             if wlan.isconnected():
                 return

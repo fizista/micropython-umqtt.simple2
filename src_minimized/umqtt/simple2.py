@@ -16,7 +16,7 @@ class MQTTClient:
 	def _read(A,n):
 		try:
 			B=b''
-			for C in range(n):A._sock_timeout(A.poller_r,A.socket_timeout);B+=A.sock.read(1)
+			for _ in range(n):A._sock_timeout(A.poller_r,A.socket_timeout);B+=A.sock.read(1)
 		except AttributeError:raise MQTTException(8)
 		if B==b'':raise MQTTException(1)
 		if len(B)!=n:raise MQTTException(2)
@@ -50,26 +50,40 @@ class MQTTClient:
 	def set_callback_status(A,f):A.cbstat=f
 	def set_last_will(A,topic,msg,retain=False,qos=0):B=topic;assert 0<=qos<=2;assert B;A.lw_topic=B;A.lw_msg=msg;A.lw_qos=qos;A.lw_retain=retain
 	def connect(A,clean_session=True):
-		E=clean_session;A.sock=socket.socket();A.poller_r=uselect.poll();A.poller_r.register(A.sock,uselect.POLLIN);A.poller_w=uselect.poll();A.poller_w.register(A.sock,uselect.POLLOUT);G=socket.getaddrinfo(A.server,A.port)[0][-1];A.sock.connect(G)
+		E=clean_session
+		A.sock=socket.socket()
+		A.poller_r=uselect.poll()
+		A.poller_r.register(A.sock,uselect.POLLIN)
+		A.poller_w=uselect.poll()
+		A.poller_w.register(A.sock,uselect.POLLOUT)
+		G=socket.getaddrinfo(A.server,A.port)[0][-1]
+		A.sock.connect(G)
 		if A.ssl:import ussl;A.sock=ussl.wrap_socket(A.sock,**A.ssl_params)
-		F=bytearray(b'\x10\x00\x00\x00\x00\x00');B=bytearray(b'\x00\x04MQTT\x04\x00\x00\x00');D=10+2+len(A.client_id);B[7]=bool(E)<<1
+		F=bytearray(b'\x10\x00\x00\x00\x00\x00')
+		B=bytearray(b'\x00\x04MQTT\x04\x00\x00\x00')
+		D=10+2+len(A.client_id)
+		B[7]=bool(E)<<1
 		if bool(E):A.rcv_pids.clear()
 		if A.user is not None:
 			D+=2+len(A.user);B[7]|=1<<7
 			if A.pswd is not None:D+=2+len(A.pswd);B[7]|=1<<6
 		if A.keepalive:assert A.keepalive<65536;B[8]|=A.keepalive>>8;B[9]|=A.keepalive&255
 		if A.lw_topic:D+=2+len(A.lw_topic)+2+len(A.lw_msg);B[7]|=4|(A.lw_qos&1)<<3|(A.lw_qos&2)<<3;B[7]|=A.lw_retain<<5
-		H=A._varlen_encode(D,F,1);A._write(F,H);A._write(B);A._send_str(A.client_id)
+		H=A._varlen_encode(D,F,1)
+		A._write(F,H)
+		A._write(B)
+		A._send_str(A.client_id)
 		if A.lw_topic:A._send_str(A.lw_topic);A._send_str(A.lw_msg)
 		if A.user is not None:
 			A._send_str(A.user)
 			if A.pswd is not None:A._send_str(A.pswd)
 		C=A._read(4)
-		if not(C[0]==32 and C[1]==2):raise MQTTException(29)
+		if C[0] != 32 or C[1] != 2:raise MQTTException(29)
 		if C[3]!=0:
 			if 1<=C[3]<=5:raise MQTTException(20+C[3])
 			else:raise MQTTException(20,C[3])
-		A.last_cpacket=ticks_ms();return C[2]&1
+		A.last_cpacket=ticks_ms()
+		return C[2]&1
 	def disconnect(A):A._write(b'\xe0\x00');A.poller_r.unregister(A.sock);A.poller_w.unregister(A.sock);A.sock.close();A.sock=None;A.poller=None
 	def ping(A):A._write(b'\xc0\x00');A.last_ping=ticks_ms()
 	def publish(A,topic,msg,retain=False,qos=0,dup=False):
