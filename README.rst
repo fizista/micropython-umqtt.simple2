@@ -36,6 +36,21 @@ Differences between umqtt.simple and umqtt.simple2
   So this library has gained more functionality (maybe reliability),
   but this was done at the expense of the amount of code.
 
+Problems and solutions
+----------------------
+* ImportError: no module named 'umqtt.simple2'
+
+  Versions of micropython from http://micropython.org/download/ since version 1.12 include
+  the umqtt library, which conflicts with the current library.
+  To avoid conflicts, you need to change the order of importing libraries.
+  You need to import the '/lib' libraries first and then the system libraries.
+  Just add the following lines of code to the boot.py file:
+
+.. code-block:: python
+
+    import sys
+    sys.path.reverse()
+
 How and where to install this code?
 -----------------------------------
 You can install using the upip:
