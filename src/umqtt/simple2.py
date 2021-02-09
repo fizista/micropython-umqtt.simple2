@@ -42,7 +42,7 @@ class MQTTClient:
         :type socket_timeout: int
         :param message_timeout: The time in seconds after which the library recognizes that a message with QoS=1
                                 or topic subscription has not been received by the server.
-        :type message_timeout: dict
+        :type message_timeout: int
         """
         if port == 0:
             port = 8883 if ssl else 1883
