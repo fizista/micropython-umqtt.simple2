@@ -25,3 +25,7 @@ STIMEOUT = 0    # timeout
 SDELIVERED = 1  # successfully delivered
 SUNKNOWNPID = 2 # Unknown PID. It is also possible that the PID is outdated,
                 # i.e. it came out of the message timeout.
+
+# From robust2
+EUNKNOWNSTATMSG = 110
+EUNKNOWNSTATSUB = 111
