@@ -48,7 +48,8 @@ class MQTTClient:
             port = 8883 if ssl else 1883
         self.client_id = client_id
         self.sock = None
-        self.poller = None
+        self.poller_r = None
+        self.poller_w = None
         self.server = server
         self.port = port
         self.ssl = ssl
@@ -303,9 +304,10 @@ class MQTTClient:
         self._write(b"\xe0\0")
         self.poller_r.unregister(self.sock)
         self.poller_w.unregister(self.sock)
+        self.poller_r = None
+        self.poller_w = None
         self.sock.close()
         self.sock = None
-        self.poller = None
 
     def ping(self):
         """
