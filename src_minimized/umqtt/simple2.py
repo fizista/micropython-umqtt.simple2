@@ -9,7 +9,7 @@ class MQTTClient:
 	def __init__(A,client_id,server,port=0,user=None,password=None,keepalive=0,ssl=False,ssl_params=None,socket_timeout=5,message_timeout=10):
 		C=ssl_params;B=port
 		if B==0:B=8883 if ssl else 1883
-		A.client_id=client_id;A.sock=None;A.poller=None;A.server=server;A.port=B;A.ssl=ssl;A.ssl_params=C if C else{};A.newpid=pid_gen()
+		A.client_id=client_id;A.sock=None;A.poller_r=None;A.poller_w=None;A.server=server;A.port=B;A.ssl=ssl;A.ssl_params=C if C else{};A.newpid=pid_gen()
 		if not getattr(A,'cb',None):A.cb=None
 		if not getattr(A,'cbstat',None):A.cbstat=lambda p,s:None
 		A.user=user;A.pswd=password;A.keepalive=keepalive;A.lw_topic=None;A.lw_msg=None;A.lw_qos=0;A.lw_retain=False;A.rcv_pids={};A.last_ping=ticks_ms();A.last_cpacket=ticks_ms();A.socket_timeout=socket_timeout;A.message_timeout=message_timeout
@@ -50,9 +50,9 @@ class MQTTClient:
 	def set_callback_status(A,f):A.cbstat=f
 	def set_last_will(A,topic,msg,retain=False,qos=0):B=topic;assert 0<=qos<=2;assert B;A.lw_topic=B;A.lw_msg=msg;A.lw_qos=qos;A.lw_retain=retain
 	def connect(A,clean_session=True):
-		E=clean_session;A.sock=socket.socket();A.poller_r=uselect.poll();A.poller_r.register(A.sock,uselect.POLLIN);A.poller_w=uselect.poll();A.poller_w.register(A.sock,uselect.POLLOUT);G=socket.getaddrinfo(A.server,A.port)[0][-1];A.sock.connect(G)
+		E=clean_session;A.sock=socket.socket();G=socket.getaddrinfo(A.server,A.port)[0][-1];A.sock.connect(G)
 		if A.ssl:import ussl;A.sock=ussl.wrap_socket(A.sock,**A.ssl_params)
-		F=bytearray(b'\x10\x00\x00\x00\x00\x00');B=bytearray(b'\x00\x04MQTT\x04\x00\x00\x00');D=10+2+len(A.client_id);B[7]=bool(E)<<1
+		A.poller_r=uselect.poll();A.poller_r.register(A.sock,uselect.POLLIN);A.poller_w=uselect.poll();A.poller_w.register(A.sock,uselect.POLLOUT);F=bytearray(b'\x10\x00\x00\x00\x00\x00');B=bytearray(b'\x00\x04MQTT\x04\x00\x00\x00');D=10+2+len(A.client_id);B[7]=bool(E)<<1
 		if bool(E):A.rcv_pids.clear()
 		if A.user is not None:
 			D+=2+len(A.user);B[7]|=1<<7
@@ -70,7 +70,7 @@ class MQTTClient:
 			if 1<=C[3]<=5:raise MQTTException(20+C[3])
 			else:raise MQTTException(20,C[3])
 		A.last_cpacket=ticks_ms();return C[2]&1
-	def disconnect(A):A._write(b'\xe0\x00');A.poller_r.unregister(A.sock);A.poller_w.unregister(A.sock);A.sock.close();A.sock=None;A.poller=None
+	def disconnect(A):A._write(b'\xe0\x00');A.poller_r.unregister(A.sock);A.poller_w.unregister(A.sock);A.poller_r=None;A.poller_w=None;A.sock.close();A.sock=None
 	def ping(A):A._write(b'\xc0\x00');A.last_ping=ticks_ms()
 	def publish(A,topic,msg,retain=False,qos=0,dup=False):
 		E=topic;B=qos;assert B in(0,1);C=bytearray(b'0\x00\x00\x00\x00');C[0]|=B<<1|retain|int(dup)<<3;F=2+len(E)+len(msg)
