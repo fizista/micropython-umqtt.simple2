@@ -48,7 +48,8 @@ class MQTTClient:
             port = 8883 if ssl else 1883
         self.client_id = client_id
         self.sock = None
-        self.poller = None
+        self.poller_r = None
+        self.poller_w = None
         self.server = server
         self.port = port
         self.ssl = ssl
@@ -218,15 +219,16 @@ class MQTTClient:
         :rtype: bool
         """
         self.sock = socket.socket()
-        self.poller_r = uselect.poll()
-        self.poller_r.register(self.sock, uselect.POLLIN)
-        self.poller_w = uselect.poll()
-        self.poller_w.register(self.sock, uselect.POLLOUT)
         addr = socket.getaddrinfo(self.server, self.port)[0][-1]
         self.sock.connect(addr)
         if self.ssl:
             import ussl
             self.sock = ussl.wrap_socket(self.sock, **self.ssl_params)
+
+        self.poller_r = uselect.poll()
+        self.poller_r.register(self.sock, uselect.POLLIN)
+        self.poller_w = uselect.poll()
+        self.poller_w.register(self.sock, uselect.POLLOUT)
 
         # Byte nr - desc
         # 1 - \x10 0001 - Connect Command, 0000 - Reserved
@@ -303,9 +305,10 @@ class MQTTClient:
         self._write(b"\xe0\0")
         self.poller_r.unregister(self.sock)
         self.poller_w.unregister(self.sock)
+        self.poller_r = None
+        self.poller_w = None
         self.sock.close()
         self.sock = None
-        self.poller = None
 
     def ping(self):
         """
