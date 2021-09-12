@@ -395,7 +395,8 @@ class MQTTClient:
         - messages from subscribed topics that are processed by functions set by the set_callback method.
         - reply from the server that he received a QoS=1 message or subscribed to a topic
 
-        :return: None
+        :return: Result of the callback method when a PUBLISH message was received, None for PINGRESP, PUBACK and SUBACK
+                 messages, otherwise the value of the MQTT control field
         """
         if self.sock:
             if not self.poller_r.poll(-1 if self.socket_timeout is None else 1):
@@ -469,7 +470,7 @@ class MQTTClient:
         msg = self._read(sz) if sz else b''
         retained = op & 0x01
         dup = op & 0x08
-        self.cb(topic, msg, bool(retained), bool(dup))
+        cb_res = self.cb(topic, msg, bool(retained), bool(dup))
         self.last_cpacket = ticks_ms()
         if op & 6 == 2:  # QoS==1
             self._write(b"\x40\x02")  # Send PUBACK
@@ -478,6 +479,7 @@ class MQTTClient:
             raise NotImplementedError()
         elif op & 6 == 6:  # 3.3.1.2 QoS - Reserved – must not be used
             raise MQTTException(-1)
+        return cb_res
 
     def wait_msg(self):
         """
