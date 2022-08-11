@@ -90,6 +90,8 @@ class MQTTClient:
                 if b is None:
                     self._sock_timeout(self.poller_r, self.socket_timeout)
                     b = self.sock.read(1)
+                    if b is None:
+                        break
                 msg += b
         except AttributeError:
             print(self.sock.__class__, dir(self.sock))
