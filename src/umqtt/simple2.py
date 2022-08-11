@@ -86,9 +86,13 @@ class MQTTClient:
         try:
             msg = b''
             for i in range(n):
-                self._sock_timeout(self.poller_r, self.socket_timeout)
-                msg += self.sock.read(1)
+                b = self.sock.read(1)
+                if b is None:
+                    self._sock_timeout(self.poller_r, self.socket_timeout)
+                    b = self.sock.read(1)
+                msg += b
         except AttributeError:
+            print(self.sock.__class__, dir(self.sock))
             raise MQTTException(8)
         if msg == b'':  # Connection closed by host (?)
             raise MQTTException(1)
@@ -224,6 +228,7 @@ class MQTTClient:
         if self.ssl:
             import ussl
             self.sock = ussl.wrap_socket(self.sock, **self.ssl_params)
+        self.sock.setblocking(False)
 
         self.poller_r = uselect.poll()
         self.poller_r.register(self.sock, uselect.POLLIN)
@@ -398,14 +403,16 @@ class MQTTClient:
         :return: None
         """
         if self.sock:
-            if not self.poller_r.poll(-1 if self.socket_timeout is None else 1):
-                self._message_timeout()
-                return None
             try:
-                res = self._read(1)  # Throws OSError on WiFi fail
+                res = self.sock.read(1)
                 if not res:
-                    self._message_timeout()
-                    return None
+                    if not self.poller_r.poll(-1 if self.socket_timeout is None else 1):
+                        self._message_timeout()
+                        return None
+                    res = self.sock.read(1)
+                    if not res:
+                        self._message_timeout()
+                        return None
             except OSError as e:
                 if e.args[0] == 110:  # Occurs when no incomming data
                     self._message_timeout()
