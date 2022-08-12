@@ -81,25 +81,32 @@ class MQTTClient:
         :param n: Expected length of read bytes
         :type n: int
         :return:
+
+        Notes:
+        Current usocket implementation returns None on .read from
+        non-blocking socket with no data. However, OSError
+        EAGAIN is checked for in case this ever changes.
         """
-        # in non-blocking mode, may not download enough data
-        try:
-            msg = b''
-            for i in range(n):
-                b = self.sock.read(1)
-                if b is None:
-                    self._sock_timeout(self.poller_r, self.socket_timeout)
-                    b = self.sock.read(1)
-                    if b is None:
-                        break
-                msg += b
-        except AttributeError:
-            print(self.sock.__class__, dir(self.sock))
-            raise MQTTException(8)
-        if msg == b'':  # Connection closed by host (?)
-            raise MQTTException(1)
-        if len(msg) != n:
+        if n < 0:
             raise MQTTException(2)
+        msg = b''
+        while len(msg) < n:
+            try:
+                rbytes = self.sock.read(n - len(msg))
+            except OSError as e:
+                if e.args[0] == 11:     # EAGAIN / EWOULDBLOCK
+                    rbytes = None
+                else:
+                    raise
+            except AttributeError:
+                raise MQTTException(8)
+            if rbytes is None:
+                self._sock_timeout(self.poller_r, self.socket_timeout)
+                continue
+            if rbytes == b'':
+                raise MQTTException(1) # Connection closed by host (?)
+            else:
+                msg += rbytes
         return msg
 
     def _write(self, bytes_wr, length=-1):
@@ -407,22 +414,27 @@ class MQTTClient:
         if self.sock:
             try:
                 res = self.sock.read(1)
-                if not res:
+                if res is None:
+                    # wait forever if no timeout, else wait 1 msec
                     if not self.poller_r.poll(-1 if self.socket_timeout is None else 1):
                         self._message_timeout()
                         return None
                     res = self.sock.read(1)
-                    if not res:
+                    if res is None:
                         self._message_timeout()
                         return None
             except OSError as e:
-                if e.args[0] == 110:  # Occurs when no incomming data
+                # 110: ETIMEDOUT 11: EAGAIN/EWOULDBLOCK
+                if e.args[0] == 110 or e.args[0] == 11:
                     self._message_timeout()
                     return None
                 else:
                     raise e
         else:
             raise MQTTException(28)
+
+        if res == b'':
+            raise MQTTException(1) # Connection closed by host
 
         if res == b"\xd0":  # PINGRESP
             if self._read(1)[0] != 0:
