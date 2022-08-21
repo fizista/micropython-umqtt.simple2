@@ -7,8 +7,8 @@ from awstestconf import SSID,WIFIPASS,CLIENT_ID,AWS_ENDPOINT,TOPIC,KEYFILE,CERTF
 
 print('WiFi name:', SSID)
 
-key = open(KEYFILE).read()
-cert = open(CERTFILE).read()
+key = open(KEYFILE,'rb').read()
+cert = open(CERTFILE,'rb').read()
 
 # SSL certificates.
 ssl_params = {'key': key, 'cert': cert}
