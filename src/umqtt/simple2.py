@@ -309,8 +309,10 @@ class MQTTClient:
             self._write(b"\xe0\0")
         except (OSError, MQTTException):
             pass
-        self.poller_r.unregister(self.sock)
-        self.poller_w.unregister(self.sock)
+        if self.poller_r:
+            self.poller_r.unregister(self.sock)
+        if self.poller_w:
+            self.poller_w.unregister(self.sock)
         try:
             self.sock.close()
         except OSError:
