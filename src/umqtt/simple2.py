@@ -218,6 +218,7 @@ class MQTTClient:
         :return: Existing persistent session of the client from previous interactions.
         :rtype: bool
         """
+        self.disconnect()
         self.sock = socket.socket()
         addr = socket.getaddrinfo(self.server, self.port)[0][-1]
         self.sock.connect(addr)
@@ -302,12 +303,22 @@ class MQTTClient:
         Disconnects from the MQTT server.
         :return: None
         """
-        self._write(b"\xe0\0")
-        self.poller_r.unregister(self.sock)
-        self.poller_w.unregister(self.sock)
+        if not self.sock:
+            return
+        try:
+            self._write(b"\xe0\0")
+        except (OSError, MQTTException):
+            pass
+        if self.poller_r:
+            self.poller_r.unregister(self.sock)
+        if self.poller_w:
+            self.poller_w.unregister(self.sock)
+        try:
+            self.sock.close()
+        except OSError:
+            pass
         self.poller_r = None
         self.poller_w = None
-        self.sock.close()
         self.sock = None
 
     def ping(self):
