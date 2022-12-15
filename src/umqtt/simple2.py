@@ -158,7 +158,20 @@ class MQTTClient:
     def _sock_timeout(self, poller, socket_timeout):
         if self.sock:
             res = poller.poll(-1 if socket_timeout is None else int(socket_timeout * 1000))
-            if not res:
+            # https://github.com/micropython/micropython/issues/3747#issuecomment-385650294
+            # Sockets on esp8266 don't return POLLHUP or POLLERR at all.
+            # If a connection is broken then the socket will become readable and a read on it will return b''.
+            # POLLIN(value:1) - you have something to read
+            # POLLHUP(value:16) - your input is ended
+            # POLLIN(1) & POLLHUP(16) = 17 - that meanss that your input is ended and that your have still
+            #                                something to read from the buffer
+            if res:
+                for fd, flag in res:
+                    if (not flag & uselect.POLLIN) and (flag & uselect.POLLHUP):
+                        raise MQTTException(2 if poller == self.poller_r else 3)
+                    if (flag & uselect.POLLERR):
+                        raise MQTTException(1)
+            else:
                 raise MQTTException(30)
         else:
             raise MQTTException(28)
@@ -227,7 +240,7 @@ class MQTTClient:
             self.sock = ussl.wrap_socket(self.sock, **self.ssl_params)
 
         self.poller_r = uselect.poll()
-        self.poller_r.register(self.sock, uselect.POLLIN)
+        self.poller_r.register(self.sock, uselect.POLLERR | uselect.POLLIN | uselect.POLLHUP)
         self.poller_w = uselect.poll()
         self.poller_w.register(self.sock, uselect.POLLOUT)
 
