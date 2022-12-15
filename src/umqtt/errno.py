@@ -1,7 +1,7 @@
 EUNKNOWN = -1   # Unknown
 ECONCLOSE = 1   # Connection closed by host
 EREADLEN = 2    # Wrong length of read data
-EWRITELEN = 3   # Wrong length of read data
+EWRITELEN = 3   # Wrong length of write data
 ESTRTOLONG = 4  # String too long !!!!
 ERESPONSE = 6   # Wrong response
 EKEEPALIVE = 7  # Connection keep time has been exceeded (umqtt.robust2)
