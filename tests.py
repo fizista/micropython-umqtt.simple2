@@ -81,7 +81,16 @@ class TestMQTT:
             args[0] += clientid_postfix
         if 'client_id' in kwargs:
             kwargs['client_id'] += clientid_postfix
-        print('MQTT connection args:', args, kwargs)
+        if 'ssl_params' in kwargs:
+            print_kwargs = kwargs.copy()
+            print_kwargs['ssl_params'] = kwargs['ssl_params'].copy()
+            if 'key' in print_kwargs['ssl_params']:
+                print_kwargs['ssl_params']['key'] = '../hidden/..'
+            if 'cert' in print_kwargs['ssl_params']:
+                print_kwargs['ssl_params']['cert'] = '../hidden/..'
+        else:
+            print_kwargs = kwargs
+        print('MQTT connection args:', args, print_kwargs)
         client = MQTTClient(*args, **kwargs)
         client.set_callback(self.sub_cb_gen(clientid_postfix))
         client.set_callback_status(self.stat_cb_gen(clientid_postfix))
@@ -137,6 +146,16 @@ class TestMQTT:
     def enable_net(self):
         raise RuntimeError('Not implemented method')
 
+    def network_status(self):
+        # Display networki information
+        raise RuntimeError('Not implemented method')
+
+    def device_status(self):
+        from micropython import mem_info, qstr_info
+        print('DEVICE STATUS:')
+        mem_info()
+        qstr_info()
+
     def get_topic(self, test_name):
         return '%s/umqtt.simple2/%s/' % (self.msg_id, test_name)
 
@@ -145,8 +164,8 @@ class TestMQTT:
         tests = [
             'test_publish_qos_0',
             'test_subscribe_qos_0',
-            'test_subscribe_qos_1',
-            'test_subscribe_qos_2',
+            # 'test_subscribe_qos_1', # not implenemted
+            # 'test_subscribe_qos_2', # not implenemted
             'test_subscribe_long_topic',
             'test_publish_qos_1',
             'test_publish_qos_1_no_puback',
@@ -180,6 +199,8 @@ class TestMQTT:
             test(self.get_topic(test_name))
         except Exception as e:
             from sys import print_exception
+            self.network_status()
+            self.device_status()
             print_exception(e)
             test_pass = False
         print('END [%s] %s\n' % (test_name, 'succes' if test_pass else 'FAIL'))
