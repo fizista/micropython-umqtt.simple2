@@ -233,12 +233,26 @@ class MQTTClient:
         :rtype: bool
         """
         self.disconnect()
-        self.sock = socket.socket()
-        addr = socket.getaddrinfo(self.server, self.port)[0][-1]
-        self.sock.connect(addr)
+
+        ai = socket.getaddrinfo(self.server, self.port)[0]
+
+        self.sock_raw = socket.socket(ai[0], ai[1], ai[2])
+        self.sock_raw.setblocking(False)
+
+        try:
+            self.sock_raw.connect(ai[-1])
+        except OSError as e:
+            import uerrno
+            if e.args[0] != uerrno.EINPROGRESS:
+                raise
+
         if self.ssl:
             import ussl
-            self.sock = ussl.wrap_socket(self.sock, **self.ssl_params)
+            self.sock_raw.setblocking(True)
+            self.sock = ussl.wrap_socket(self.sock_raw, **self.ssl_params)
+            self.sock_raw.setblocking(False)
+        else:
+            self.sock = self.sock_raw
 
         self.poller_r = uselect.poll()
         self.poller_r.register(self.sock, uselect.POLLERR | uselect.POLLIN | uselect.POLLHUP)
