@@ -1,5 +1,5 @@
 #!/bin/bash
-COMPILED='yes'
+COMPILED='no'
 PORT=/dev/ttyUSB0
 BAUD=115200
 
@@ -70,5 +70,9 @@ case "$COMPILED" in
 "no" | "n")
   delete_compiled
   copy_normal
+  ;;
+*)
+  echo "Error: No agruments"
+  exit 1
   ;;
 esac
