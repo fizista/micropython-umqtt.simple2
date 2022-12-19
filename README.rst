@@ -177,6 +177,63 @@ There is also a sample file `main.py`(`example_test_main.py`),
 In this file we add only network configuration. Upload this file to your device with umqtt.simple2_
 library and `tests.py` module. Then reset the device and watch the results in the console.
 
+How to get tests up and running quickly:
+
+.. code-block:: bash
+
+    cp example_test_main.py main.py
+
+In the main.py file, assign the appropriate values from your WiFi network to the WIFI_SSID
+and WIFI_PASSWORD variables.
+
+.. code-block:: bash
+
+    ./upload_to_device.sh
+
+or
+
+.. code-block:: bash
+
+    ./upload_to_device.sh yes # A compiled version that takes up less memory on devices.
+
+Launching the tests:
+
+.. code-block:: bash
+
+    screen /dev/ttyUSB0  115200 # or screen /dev/ttyACM0  115200
+    # Ctrl+D - to restart device
+
+
+Configuring an encrypted connection with test.mosquitto.org:
+
+.. code-block:: bash
+
+    openssl genrsa -out client.key
+    openssl req -out client.csr -key client.key -new
+    cat client.csr # Copy and paste on the page: https://test.mosquitto.org/ssl/ , click "submit"
+    # Save the certificate to the same directory as client.crt
+    # Dowlnoad mosquitto.org.crt
+    # Change key formats:
+    openssl x509 -in client.crt -out client.crt.der -outform DER
+    openssl rsa -in client.key -out client.key.der -outform DER
+    openssl x509 -in mosquitto.org.crt -out mosquitto.org.crt.der -outform DER
+    # Upload to device
+    ampy -d1 --baud 115200 --port /dev/ttyACM0 put ./client.key.der
+    ampy -d1 --baud 115200 --port /dev/ttyACM0 put ./client.crt.der
+    ampy -d1 --baud 115200 --port /dev/ttyACM0 put ./mosquitto.org.crt.der
+
+Configuring keys for MQTT server(eg. mosquitto):
+
+.. code-block:: bash
+
+    openssl genrsa -des3 -out ca.key 2048
+    openssl req -new -x509 -days 1826 -key ca.key -out ca.crt
+    openssl genrsa -out server.pem 2048
+    openssl req -new -out server.csr -key server.pem
+    openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out cert.der -days 360
+    openssl rsa -inform pem -in server.pem -outform der -out key.der
+
+
 Different problems
 ------------------
 * Wrong topic format during subscription - you'll get `OSError: [Errno 104] ECONNRESET` in subscribe()
