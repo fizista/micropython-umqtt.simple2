@@ -9,6 +9,9 @@ MQTT_BROKER_IP = '???' # or hostname
 MQTT_BROKER_TEST_USER = 'test'
 MQTT_BROKER_TEST_PASSWORD = 'abc'
 
+CLIENT_CERT = '/client.crt.der'
+CLIENT_KEY = '/client.key.der'
+
 import machine
 import utime
 import network
@@ -37,6 +40,21 @@ print('* Connection OK *')
 print('*****************')
 
 import tests as tests_mod
+
+
+def read_data(file_name: str):
+    try:
+        with open(file_name, 'rb') as f:
+            data = f.read()
+            if not data:
+                raise Exception('No key data')
+            return data
+    except OSError:
+        raise Exception('Problems when loading a file: %s' % file_name)
+
+
+key_data = read_data(CLIENT_KEY)
+cert_data = read_data(CLIENT_CERT)
 
 
 class TestMQTT(tests_mod.TestMQTT):
@@ -110,11 +128,6 @@ tests = TestMQTT(
 t2 = tests.run(verbose=False)
 
 # MQTT, encrypted, unauthenticated
-with open('/ca.crt.der', 'r') as f:
-    cert_data = f.read()
-    if not cert_data:
-        raise Exception('No key data')
-
 # TestMQTT.HIDE_SENSITIVE = False
 tests = TestMQTT(
     hexlify(machine.unique_id()).decode('ascii'),
@@ -128,16 +141,6 @@ tests = TestMQTT(
 t3 = tests.run(verbose=False)
 
 # Encrypted MQTT, encrypted, client certificate required
-with open('/client.key.der', 'r') as f:
-    key_data = f.read()
-    if not key_data:
-        raise Exception('No key data')
-
-with open('/client.crt.der', 'r') as f:
-    cert_data = f.read()
-    if not cert_data:
-        raise Exception('No cert data')
-
 tests = TestMQTT(
     hexlify(machine.unique_id()).decode('ascii'),
     MQTT_BROKER_IP,
@@ -150,11 +153,6 @@ tests = TestMQTT(
 t4 = tests.run(verbose=False)
 
 # MQTT, encrypted, authenticated
-with open('/ca.crt.der', 'r') as f:
-    cert_data = f.read()
-    if not cert_data:
-        raise Exception('No key data')
-
 # TestMQTT.HIDE_SENSITIVE = False
 tests = TestMQTT(
     hexlify(machine.unique_id()).decode('ascii'),
