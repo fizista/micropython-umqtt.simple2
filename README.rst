@@ -15,6 +15,14 @@ Support MQTT Version 3.1.1 only.
 It certainly works with micropython ports: esp8266 and esp32. It should also
 work with other ports, but the library was not tested under other ports.
 
+========  ===========  ========  ===========
+          Micropython
+Port      Version      Normal    SSL
+========  ===========  ========  ===========
+esp8266   1.9.1        OK        Test fails
+esp32     1.9.1        OK        OK
+========  ===========  ========  ===========
+
 MQTT client with more features
 ------------------------------
 
