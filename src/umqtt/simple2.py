@@ -37,6 +37,8 @@ class MQTTClient:
         :type ssl: bool
         :param ssl_params: Required SSL parameters. Kwargs from function ssl.wrap_socket.
                            See documentation: https://docs.micropython.org/en/latest/library/ssl.html#ssl.ssl.wrap_socket
+                           For esp8266, please refer to the capabilities of the axTLS library applied to the micropython port.
+                           https://axtls.sourceforge.net
         :type ssl_params: dict
         :param socket_timeout: The time in seconds after which the socket interrupts the connection to the server when
                                no data exchange takes place. None - socket blocking, positive number - seconds to wait.

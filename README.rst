@@ -226,13 +226,95 @@ Configuring keys for MQTT server(eg. mosquitto):
 
 .. code-block:: bash
 
-    openssl genrsa -des3 -out ca.key 2048
-    openssl req -new -x509 -days 1826 -key ca.key -out ca.crt
-    openssl genrsa -out server.pem 2048
-    openssl req -new -out server.csr -key server.pem
-    openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out cert.der -days 360
+    openssl req -new -x509 -days 365 -extensions v3_ca -keyout ca.key -out ca.crt -subj "/C=XX/ST=Home/L=Home/O=MyCA/OU=MyCA/CN=myca"
+
+    openssl genrsa -out server.key 2048
+    openssl req -new -out server.csr -key server.key -subj "/C=XX/ST=Home/L=Home/O=MQTT Broker/OU=MQTT Broker/CN=YourMQTTserver"
+    openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out server.crt -days 365
+    openssl rsa -in server.key -out server.key
     openssl rsa -inform pem -in server.pem -outform der -out key.der
 
+Configuring keys for MQTT server(eg. mosquitto):
+
+.. code-block:: bash
+
+    openssl genrsa -out client.key 2048
+    openssl req -new -out client.csr -key client.key -subj "/C=XX/ST=Home/L=Home/O=MQTT Client/OU=MQTT Client/CN=YourDeviceHostName"
+    openssl x509 -req -in client.csr -CA ../ca.crt -CAkey ../ca.key -CAcreateserial -out client.crt -days 365
+    openssl rsa -in client.key -out client.key
+    openssl x509 -in client.crt -out client.crt.der -outform DER
+    openssl rsa -in client.key -out client.key.der -outform DER
+    ampy -d1 --baud 115200 --port /dev/ttyACM0 put ./client.key.der
+    ampy -d1 --baud 115200 --port /dev/ttyACM0 put ./client.crt.der
+
+Configuring mosquitto:
+
+.. code-block:: bash
+
+    mosquitto_passwd -c /etc/mosquitto/passwd
+    touch /etc/mosquitto/acl
+
+mosquitto.conf
+
+.. code-block::
+
+    per_listener_settings true
+
+    persistence true
+    persistence_location /var/lib/mosquitto/
+    persistent_client_expiration 4m
+
+    log_dest file /var/log/mosquitto/mosquitto.log
+    log_type all
+
+    include_dir /etc/mosquitto/conf.d
+
+    # MQTT, unencrypted, unauthenticated=anonymous
+    listener 1883 0.0.0.0
+    socket_domain ipv4
+    allow_anonymous true
+    set_tcp_nodelay true
+    #keepalive_interval 0
+    max_keepalive 0
+
+    # MQTT, unencrypted, authenticated=password
+    listener 1884 0.0.0.0
+    socket_domain ipv4
+    password_file /etc/mosquitto/passwd
+    #acl_file /etc/mosquitto/acl
+    set_tcp_nodelay true
+    #keepalive 0
+
+    # MQTT, encrypted, unauthenticated
+    listener 8883 0.0.0.0
+    socket_domain ipv4
+    allow_anonymous true
+    cafile /etc/mosquitto/certs/ca.crt
+    certfile /etc/mosquitto/certs/server.crt
+    keyfile /etc/mosquitto/certs/server.key
+
+    # MQTT, encrypted, client certificate required
+    listener 8884 0.0.0.0
+    socket_domain ipv4
+    allow_anonymous true
+    cafile /etc/mosquitto/certs/ca.crt
+    capath /etc/mosquitto/certs/certs
+    certfile /etc/mosquitto/certs/server.crt
+    keyfile /etc/mosquitto/certs/server.key
+    require_certificate true
+    use_identity_as_username true # When set to true it tells mosquitto not to use the password file
+
+    # MQTT, encrypted, authenticated
+    listener 8885 0.0.0.0
+    socket_domain ipv4
+    password_file /etc/mosquitto/passwd
+    cafile /etc/mosquitto/certs/ca.crt
+    certfile /etc/mosquitto/certs/server.crt
+    keyfile /etc/mosquitto/certs/server.key
+
+.. code-block:: bash
+
+    chown -R mosquitto:mosquitto /etc/mosquitto/certs/
 
 Different problems
 ------------------
