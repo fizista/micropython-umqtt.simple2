@@ -1,4 +1,4 @@
-import utime
+import utime as time
 from ubinascii import hexlify
 from umqtt.simple2 import MQTTClient as _MQTTClient, MQTTException, pid_gen
 
@@ -66,6 +66,21 @@ class MQTTClient(_MQTTClient):
 
 
 class TestMQTT:
+    HIDE_SENSITIVE = True
+
+    TESTS = [
+        'test_publish_qos_0',
+        'test_subscribe_qos_0',
+        # 'test_subscribe_qos_1', # not implenemted
+        # 'test_subscribe_qos_2', # not implenemted
+        'test_subscribe_long_topic',
+        'test_publish_qos_1',
+        'test_publish_qos_1_no_puback',
+        'test_publish_qos_2',
+        'test_publish_retain',
+        'test_publish_lastwill',
+    ]
+
     def __init__(self, *args, **kwargs):
         self.mqtt_client_args = (args, kwargs)
         self.msg_id = args[0]
@@ -81,15 +96,28 @@ class TestMQTT:
             args[0] += clientid_postfix
         if 'client_id' in kwargs:
             kwargs['client_id'] += clientid_postfix
+        print_args = args.copy()
+        print_kwargs = kwargs.copy()
         if 'ssl_params' in kwargs:
-            print_kwargs = kwargs.copy()
             print_kwargs['ssl_params'] = kwargs['ssl_params'].copy()
-            if 'key' in print_kwargs['ssl_params']:
-                print_kwargs['ssl_params']['key'] = '../hidden/..'
-            if 'cert' in print_kwargs['ssl_params']:
-                print_kwargs['ssl_params']['cert'] = '../hidden/..'
-        else:
-            print_kwargs = kwargs
+        hidden_val = '../hidden/..'
+        if self.HIDE_SENSITIVE:
+            if 'ssl_params' in print_kwargs:
+                if 'key' in print_kwargs['ssl_params']:
+                    print_kwargs['ssl_params']['key'] = hidden_val
+                if 'cert' in print_kwargs['ssl_params']:
+                    print_kwargs['ssl_params']['cert'] = hidden_val
+            if 'password' in print_kwargs:
+                print_kwargs['password'] = hidden_val
+            if len(print_args) >= 5:
+                print_args[4] = hidden_val  # password
+            if len(print_args) >= 8:
+                print_args[7] = hidden_val  # ssl_params
+                if 'key' in print_args[7]:
+                    print_args[7]['key'] = hidden_val
+                if 'cert' in print_args[7]:
+                    print_args[7]['cert'] = hidden_val
+
         print('MQTT connection args:', args, print_kwargs)
         client = MQTTClient(*args, **kwargs)
         client.set_callback(self.sub_cb_gen(clientid_postfix))
@@ -122,14 +150,14 @@ class TestMQTT:
                 o = self.subsctiption_out[clientid_postfix]
                 self.subsctiption_out[clientid_postfix] = None
                 return o
-            utime.sleep(1)
+            time.sleep(1)
         raise Exception('timeout')
 
     def get_status_out(self, timeout=5, pid=None, clientid_postfix='_1'):
         print('WAIT STAT: timeout=%d pid=%s' % (timeout, pid))
         client = self.clients[clientid_postfix]
         for i in range(timeout + 1):
-            utime.sleep(1)
+            time.sleep(1)
             client.check_msg()
             if clientid_postfix in self.status_out and self.status_out[clientid_postfix] is not None:
                 o = self.status_out[clientid_postfix]
@@ -159,28 +187,26 @@ class TestMQTT:
     def get_topic(self, test_name):
         return '%s/umqtt.simple2/%s/' % (self.msg_id, test_name)
 
-    def run(self):
-        test_fails = []
-        tests = [
-            'test_publish_qos_0',
-            'test_subscribe_qos_0',
-            # 'test_subscribe_qos_1', # not implenemted
-            # 'test_subscribe_qos_2', # not implenemted
-            'test_subscribe_long_topic',
-            'test_publish_qos_1',
-            'test_publish_qos_1_no_puback',
-            'test_publish_qos_2',
-            'test_publish_retain',
-            'test_publish_lastwill',
-        ]
-        for test_name in tests:
-            if not self.run_test(test_name):
-                test_fails.append(test_name)
-        if test_fails:
-            print('\nTests ok: %s\n' % ', '.join(t for t in tests if t not in test_fails))
-            print('\nTests fails: %s\n' % ', '.join(test_fails))
+    def verbose_tests(self, test_values: dict):
+        tests_fail=[k for k, v in test_values.items() if not v[0]]
+        if tests_fail:
+            print('\nTests fails: %s\n' % ', '.join(tests_fail))
         else:
             print('All the tests were finished successfully!')
+
+    def run(self, verbose=True, tests=None, hide_sensitive=HIDE_SENSITIVE):
+        self.HIDE_SENSITIVE = hide_sensitive
+        if not tests:
+            tests = self.TESTS
+        tests_values = {}
+        for test_name in tests:
+            a = time.ticks_ms()
+            s = self.run_test(test_name)
+            b = time.ticks_ms()
+            tests_values[test_name] = (s, time.ticks_diff(b, a))
+        if verbose:
+            self.verbose_tests(tests_values)
+        return tests_values
 
     def run_test(self, test_name):
         try:
@@ -222,7 +248,7 @@ class TestMQTT:
         self.client.connect()
         pid = self.client.publish(topic, 'test QoS 1', qos=1)
         pid = next(self.client.newpid)
-        self.client.rcv_pids[pid] = utime.ticks_add(utime.ticks_ms(), self.client.message_timeout * 1000)
+        self.client.rcv_pids[pid] = time.ticks_add(time.ticks_ms(), self.client.message_timeout * 1000)
         out_pid, status = self.get_status_out(10, pid=pid)
         assert status == 0
         self.client.disconnect()
@@ -290,7 +316,7 @@ class TestMQTT:
         msg_out = self.get_subscription_out()[1]
         assert b'online' == msg_out
         self.client.sock.close()
-        utime.sleep(1)
+        time.sleep(1)
 
         client_2 = self.init_mqtt_client('_2')
         client_2.connect()

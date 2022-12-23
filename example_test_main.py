@@ -5,6 +5,10 @@
 WIFI_SSID='<YOUR WIFI SSID>'
 WIFI_PASSWORD='<YOUR WIFI PASSWORD>'
 
+MQTT_BROKER_IP = '???' # or hostname
+MQTT_BROKER_TEST_USER = 'test'
+MQTT_BROKER_TEST_PASSWORD = 'abc'
+
 import machine
 import utime
 import network
@@ -68,15 +72,15 @@ class TestMQTT(tests_mod.TestMQTT):
         status = i.status()
         CFG_ITEMS = ('authmode', 'channel', 'dhcp_hostname', 'essid', 'hidden', 'hostname', 'key', 'mac', 'max_clients',
                      'reconnects', 'security', 'ssid', 'txpower')
-        print(f'NET({i_name}): active=', i.active())
-        print(f'NET({i_name}): isconnected=', i.isconnected())
+        print('NET(%s): active=' % i_name, i.active())
+        print('NET(%s): isconnected=' % i_name, i.isconnected())
         stat_names = [n for n in dir(network) if n.startswith('STAT_')]
         stats_map = dict([(getattr(network, sn), sn) for sn in stat_names])
-        print(f'NET({i_name}): status=', stats_map.get(status, status))
-        print(f'NET({i_name}): ifconfig=', i.ifconfig())
+        print('NET(%s): status=' % i_name, stats_map.get(status, status))
+        print('NET(%s): ifconfig=' % i_name, i.ifconfig())
         for c in CFG_ITEMS:
             try:
-                print(f'NET({i_name}): config({c})=', i.config(c))
+                print('NET(%s): config(%s)=' % (i_name, c), i.config(c))
             except:
                 pass
 
@@ -87,35 +91,136 @@ class TestMQTT(tests_mod.TestMQTT):
         self._print_net_stats('STA', sta)
 
 
-# 1883 : MQTT, unencrypted
-# 8883 : MQTT, encrypted
-# 8884 : MQTT, encrypted, client certificate required
+# MQTT, anon, unencrypted, unauthenticated
+tests = TestMQTT(
+    hexlify(machine.unique_id()).decode('ascii'),
+    MQTT_BROKER_IP,
+    port=1883
+)
+t1 = tests.run(verbose=False)
 
-# tests = TestMQTT(
-#     hexlify(machine.unique_id()).decode('ascii'),
-#     'test.mosquitto.org',
-#     port=1883
-# )
+# MQTT, password, unencrypted
+tests = TestMQTT(
+    hexlify(machine.unique_id()).decode('ascii'),
+    MQTT_BROKER_IP,
+    port=1884,
+    user=MQTT_BROKER_TEST_USER,
+    password=MQTT_BROKER_TEST_PASSWORD
+)
+t2 = tests.run(verbose=False)
 
-# OR
+# MQTT, encrypted, unauthenticated
+with open('/ca.crt.der', 'r') as f:
+    cert_data = f.read()
+    if not cert_data:
+        raise Exception('No key data')
 
-# with open('/client.key.der', 'r') as f:
-#     key_data = f.read()
-#
-# with open('/client.crt.der', 'r') as f:
-#     cert_data = f.read()
-#
-# tests = TestMQTT(
-#     hexlify(machine.unique_id()).decode('ascii'),
-#     'test.mosquitto.org',
-#     port=8884,
-#     ssl=True,
-#     ssl_params={'key': key_data, 'cert': cert_data, },
-#     keepalive=180,
-#     socket_timeout=120
-# )
+# TestMQTT.HIDE_SENSITIVE = False
+tests = TestMQTT(
+    hexlify(machine.unique_id()).decode('ascii'),
+    MQTT_BROKER_IP,
+    port=8883,
+    ssl=True,
+    ssl_params={},
+    keepalive=180,
+    socket_timeout=120
+)
+t3 = tests.run(verbose=False)
 
-tests.run()
+# Encrypted MQTT, encrypted, client certificate required
+with open('/client.key.der', 'r') as f:
+    key_data = f.read()
+    if not key_data:
+        raise Exception('No key data')
+
+with open('/client.crt.der', 'r') as f:
+    cert_data = f.read()
+    if not cert_data:
+        raise Exception('No cert data')
+
+tests = TestMQTT(
+    hexlify(machine.unique_id()).decode('ascii'),
+    MQTT_BROKER_IP,
+    port=8884,
+    ssl=True,
+    ssl_params={'key': key_data, 'cert': cert_data, },
+    keepalive=180,
+    socket_timeout=120
+)
+t4 = tests.run(verbose=False)
+
+# MQTT, encrypted, authenticated
+with open('/ca.crt.der', 'r') as f:
+    cert_data = f.read()
+    if not cert_data:
+        raise Exception('No key data')
+
+# TestMQTT.HIDE_SENSITIVE = False
+tests = TestMQTT(
+    hexlify(machine.unique_id()).decode('ascii'),
+    MQTT_BROKER_IP,
+    port=8883,
+    ssl=True,
+    ssl_params={},
+    user=MQTT_BROKER_TEST_USER,
+    password=MQTT_BROKER_TEST_PASSWORD
+)
+t5 = tests.run(verbose=False)
+
+
+def print_title(txt: str):
+    print('TEST NAME: %s' % txt)
+
+
+tt = (
+    ('MQTT, anon, unencrypted, unauthenticated', t1),
+    ('MQTT, password, unencrypted', t2),
+    ('MQTT, encrypted, unauthenticated', t3),
+    ('MQTT, encrypted, client certificate required', t4),
+    ('MQTT, encrypted, authenticated', t5),
+)
+
+for k, v in tt:
+    print_title(k)
+    tests.verbose_tests(v)
+
+for t_i, (t_group, t_val) in enumerate(tt):
+    print('t_%d - %s' % (t_i, t_group))
+
+print('')
+
+print('%30s |' % 'Test name', end='')
+for t_i, (t_group, t_val) in enumerate(tt):
+    print('%8s-t_0 | ' % ('t_%d' % t_i), end='')
+print()
+
+for ktn, tn in enumerate(tests.TESTS):
+    print('%30s |' % tn, end='')
+    for t_i, (t_group, t_val) in enumerate(tt):
+
+        status_base_test = tt[0][1][tests.TESTS[ktn]][0]
+        time_base_test = tt[0][1][tests.TESTS[ktn]][1]
+        status_current_test = t_val[tn][0]
+        time_current_test = t_val[tn][1]
+
+        if status_base_test:
+            print(
+                '%12s | ' % (str(abs(time_current_test - time_base_test)) + ' ms' if status_current_test else 'ERROR'),
+                end='')
+        else:
+            print('%12s | ' % ('UNKNOWN ms' if status_current_test else 'ERROR'), end='')
+    print()
+print()
+print('%30s |' % 'Test name', end='')
+for t_i, (t_group, t_val) in enumerate(tt):
+    print('%12s | ' % ('t_%d' % t_i), end='')
+print()
+
+for tn in tests.TESTS:
+    print('%30s |' % tn, end='')
+    for t_i, (t_group, t_val) in enumerate(tt):
+        print('%12s | ' % (str(t_val[tn][1]) + ' ms ' if t_val[tn][0] else 'ERROR'), end='')
+    print()
 
 # A single test can be run with a command:
 # tests.run_test('<test_name>')
